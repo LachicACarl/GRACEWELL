@@ -42,11 +42,11 @@ npm start
 
 ### Default Users:
 After running the server, these users will be seeded:
-- SA001 / admin123 (Super Admin)
-- A001 / admin123 (Admin)
+- GW001 / admin123 (Super Admin)
+- GW002 / admin123 (Admin)
 - M001 / manager123 (Manager)
-- E001 / emp123 (Employee - Trucker)
-- E002 / emp123 (Employee - Finance Head)
+- GW003 / emp123 (Employee - Trucker)
+- GW004 / emp123 (Employee - Finance Head)
 
 ## Notes:
 - The database.js file now uses Supabase instead of SQLite

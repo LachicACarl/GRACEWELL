@@ -135,7 +135,7 @@ function App() {
         <Route 
           path="/admin" 
           element={
-            <ProtectedRoute user={user} requiredRole="admin-qr">
+            <ProtectedRoute user={user} requiredRole="admin-super">
               <AdminDashboard user={user} onLogout={handleLogout} />
             </ProtectedRoute>
           } 

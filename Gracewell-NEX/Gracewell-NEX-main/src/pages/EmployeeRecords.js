@@ -503,32 +503,71 @@ const EmployeeRecords = ({ user, onLogout }) => {
 
   const generateEmployeeIdFrom = (list) => {
     const gwIds = (list || [])
-      .map((emp) => String(emp.employee_code || emp.employeeId || ''))
+      .map((emp) => String(emp.employee_code || emp.employee_id || emp.employeeId || ''))
       .map((code) => {
-        // Match both old format (SA001, E001, etc) and new GW format (GW001)
+        // Match the GW format (GW001)
         const match = code.match(/^GW(\d+)$/i);
         return match ? parseInt(match[1], 10) : null;
       })
       .filter((value) => Number.isInteger(value));
 
-    const nextNumber = (gwIds.length ? Math.max(...gwIds) : 0) + 1;
+    console.log('[EmployeeRecords] Extracted GW IDs:', gwIds);
+
+    // Start from GW005 minimum (GW001-GW004 reserved for admin accounts)
+    const maxExisting = gwIds.length ? Math.max(...gwIds) : 4;
+    const nextNumber = Math.max(maxExisting + 1, 5);
+    
+    console.log('[EmployeeRecords] Max existing GW number:', maxExisting, '→ Next number:', nextNumber);
+    
     return `GW${String(nextNumber).padStart(3, '0')}`;
+  };
+
+  const getNextAvailableEmployeeId = async () => {
+    try {
+      // Fetch ALL employees to find the max GW number system-wide
+      // Using limit=1000 to get as many as possible (adjust if needed)
+      // Add timestamp to prevent caching
+      const { data } = await apiClient.get(`/employees?limit=1000&_t=${Date.now()}`);
+      const allEmployees = data?.employees || [];
+      console.log(`[EmployeeRecords] Found ${allEmployees.length} total employees for ID generation`);
+      const nextId = generateEmployeeIdFrom(allEmployees);
+      console.log(`[EmployeeRecords] Generated next employee ID: ${nextId}`);
+      return nextId;
+    } catch (error) {
+      console.error('[EmployeeRecords] Failed to fetch all employees for ID generation:', error);
+      // Fallback: use employees currently in state
+      return generateEmployeeIdFrom(employees);
+    }
   };
 
   const handleOpenAddModal = async () => {
     setNewEmployeeErrors({});
     setAddStep(1);
+    
+    // Generate fresh ID before showing modal
+    const generatedId = await getNextAvailableEmployeeId();
+    setNewEmployee((prev) => ({ 
+      ...prev, 
+      employeeId: generatedId,
+      // Reset other fields to ensure clean state
+      name: '',
+      firstName: '',
+      middleName: '',
+      lastName: '',
+      email: '',
+      department: '',
+      position: '',
+      contactNumber: '',
+      phone: '',
+      birthdate: '',
+      address: '',
+      salary: '',
+      joinDate: '',
+      idPhotoPreview: null,
+      idPhotoFile: null
+    }));
+    
     setShowAddModal(true);
-
-    try {
-      const { data } = await apiClient.get('/employees');
-      const generatedId = generateEmployeeIdFrom(data?.employees || []);
-      setNewEmployee((prev) => ({ ...prev, employeeId: generatedId }));
-    } catch (error) {
-      const generatedId = generateEmployeeIdFrom(employees);
-      setNewEmployee((prev) => ({ ...prev, employeeId: generatedId }));
-      console.error('Failed to refresh employee list for ID generation:', error);
-    }
   };
 
   return (

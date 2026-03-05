@@ -33,11 +33,11 @@ Backend API for Gracewell NEXUS Attendance System.
 
 | Employee ID | Password | Role |
 |------------|----------|------|
-| SA001 | admin123 | super_admin |
-| A001 | admin123 | admin |
+| GW001 | admin123 | super_admin |
+| GW002 | admin123 | admin |
 | M001 | manager123 | manager |
-| E001 | emp123 | employee |
-| E002 | emp123 | employee |
+| GW003 | emp123 | employee |
+| GW004 | emp123 | employee |
 
 ## API Endpoints
 

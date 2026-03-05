@@ -264,7 +264,7 @@ export const logAudit = async (action, details) => {
  * Validation utilities
  */
 export const validateEmployeeId = (id) => {
-  // Format: 2-6 alphanumeric, pattern like SA001, M001, E001
+  // Format: 2-6 alphanumeric, pattern like GW001, M001, GW003
   const pattern = /^[A-Za-z]{1,3}\d{1,4}$/;
   return pattern.test(id.trim());
 };

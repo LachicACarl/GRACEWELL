@@ -133,9 +133,9 @@ function clearResetAttempts(email) {
  */
 function validateEmployeeIdFormat(id) {
   // Format: GW + sequential number (e.g., GW001, GW1234) - NEW FORMAT
-  // OR: Old format for backward compatibility (e.g., SA001, M001, E001)
+  // OR: Legacy alphanumeric format for backward compatibility (e.g., M001, EMP123)
   const newFormat = /^GW\d{1,4}$/i;     // GW001-GW9999
-  const oldFormat = /^[A-Za-z]{1,3}\d{1,4}$/; // SA001, M001, E001, etc.
+  const oldFormat = /^[A-Za-z]{1,3}\d{1,4}$/; // Legacy IDs (still accepted)
   return newFormat.test(id.trim()) || oldFormat.test(id.trim());
 }
 

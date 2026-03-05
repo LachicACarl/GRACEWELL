@@ -45,7 +45,7 @@ async function initializeDatabase() {
 async function seedDefaultUsers() {
   const users = [
     {
-      employeeCode: 'SA001',
+      employeeCode: 'GW001',
       firstName: 'Super',
       lastName: 'Admin',
       role: 'super_admin',
@@ -55,7 +55,7 @@ async function seedDefaultUsers() {
       position: 'Super Admin'
     },
     {
-      employeeCode: 'A001',
+      employeeCode: 'GW002',
       firstName: 'Admin',
       lastName: 'User',
       role: 'admin',
@@ -75,7 +75,7 @@ async function seedDefaultUsers() {
       position: 'Operations Manager'
     },
     {
-      employeeCode: 'E001',
+      employeeCode: 'GW003',
       firstName: 'John',
       lastName: 'Smith',
       role: 'employee',
@@ -85,7 +85,7 @@ async function seedDefaultUsers() {
       position: 'Trucker'
     },
     {
-      employeeCode: 'E002',
+      employeeCode: 'GW004',
       firstName: 'Sarah',
       lastName: 'Johnson',
       role: 'employee',

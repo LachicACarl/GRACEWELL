@@ -50,9 +50,9 @@ const getEmployeeByCode = async (employeeCode) => {
 };
 
 async function testLoginFlow() {
-  console.log('Testing login flow for SA001...\n');
+  console.log('Testing login flow for GW001...\n');
   
-  const { employee, account, roleName } = await getEmployeeByCode('SA001');
+  const { employee, account, roleName } = await getEmployeeByCode('GW001');
   
   if (!employee || !account || !roleName) {
     console.log('❌ Login would fail: Missing employee/account/role');

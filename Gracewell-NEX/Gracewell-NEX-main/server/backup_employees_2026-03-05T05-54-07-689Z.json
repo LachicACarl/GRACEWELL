@@ -1,0 +1,335 @@
+[
+  {
+    "employee_id": 77,
+    "employee_code": "QR001",
+    "first_name": "QR",
+    "last_name": "Scanner",
+    "email_address": "qr-scanner@gracewell.com",
+    "position": "QR Scanner Admin",
+    "record_status": "Active"
+  },
+  {
+    "employee_id": 79,
+    "employee_code": "A001",
+    "first_name": "Admin",
+    "last_name": "User",
+    "email_address": "admin@gracewell.com",
+    "position": "Administrator",
+    "record_status": "Active"
+  },
+  {
+    "employee_id": 61,
+    "employee_code": "E031",
+    "first_name": "casper",
+    "last_name": "afsda",
+    "email_address": "adsa@gmail.com",
+    "position": "Operations Head",
+    "record_status": "inactive"
+  },
+  {
+    "employee_id": 4,
+    "employee_code": "E001",
+    "first_name": "John",
+    "last_name": "Smith",
+    "email_address": "john@gracewell.com",
+    "position": "Trucker",
+    "record_status": "Active"
+  },
+  {
+    "employee_id": 5,
+    "employee_code": "E002",
+    "first_name": "Sarah",
+    "last_name": "Johnson",
+    "email_address": "sarah@gracewell.com",
+    "position": "Finance Head",
+    "record_status": "Active"
+  },
+  {
+    "employee_id": 7,
+    "employee_code": "E004",
+    "first_name": "Aric",
+    "last_name": "Vey",
+    "email_address": "employee@gmail.com",
+    "position": "IT Head",
+    "record_status": "Active"
+  },
+  {
+    "employee_id": 9,
+    "employee_code": "E005",
+    "first_name": "Echo",
+    "last_name": "Grid",
+    "email_address": "MARCELINO@gmail.com",
+    "position": "Operations Head",
+    "record_status": "Active"
+  },
+  {
+    "employee_id": 10,
+    "employee_code": "E006",
+    "first_name": "Juana",
+    "last_name": "Rosario",
+    "email_address": "jmad@gmail.com",
+    "position": "IT Head",
+    "record_status": "Active"
+  },
+  {
+    "employee_id": 11,
+    "employee_code": "E007",
+    "first_name": "Jonalene",
+    "last_name": "Abundo",
+    "email_address": "jabundo@gmail.com",
+    "position": "Finance Head",
+    "record_status": "Active"
+  },
+  {
+    "employee_id": 13,
+    "employee_code": "E009",
+    "first_name": "manny",
+    "last_name": "bartolume",
+    "email_address": "manny@gmail.com",
+    "position": "Trucker",
+    "record_status": "Active"
+  },
+  {
+    "employee_id": 14,
+    "employee_code": "E010",
+    "first_name": "Rivo",
+    "last_name": "ejhifukefisef",
+    "email_address": "employee123@gmail.com",
+    "position": "Operations Head",
+    "record_status": "Active"
+  },
+  {
+    "employee_id": 38,
+    "employee_code": "E015",
+    "first_name": "Janine",
+    "last_name": "Soberano",
+    "email_address": "janinesob@gmail.com",
+    "position": "Finance Head",
+    "record_status": "ACTIVE"
+  },
+  {
+    "employee_id": 16,
+    "employee_code": "E011",
+    "first_name": "mangben",
+    "last_name": "ajdnhwakhbd",
+    "email_address": "employee@gmail.com",
+    "position": "Finance Head",
+    "record_status": "inactive"
+  },
+  {
+    "employee_id": 48,
+    "employee_code": "E021",
+    "first_name": "sdfgsdfg",
+    "last_name": "dfgh",
+    "email_address": "employee123456765432@gmail.com",
+    "position": "Developer",
+    "record_status": "ACTIVE"
+  },
+  {
+    "employee_id": 37,
+    "employee_code": "E014",
+    "first_name": "Karylle",
+    "last_name": "Aliswag",
+    "email_address": "kvinces@gmail.com",
+    "position": "Developer",
+    "record_status": "ACTIVE"
+  },
+  {
+    "employee_id": 18,
+    "employee_code": "E012",
+    "first_name": "Roberto",
+    "last_name": "Limiter",
+    "email_address": "robdelim@gmail.com",
+    "position": "Porter",
+    "record_status": "Active"
+  },
+  {
+    "employee_id": 40,
+    "employee_code": "E016",
+    "first_name": "WERTYUJHGFDS",
+    "last_name": "WQERTYUTREWQERTY",
+    "email_address": "employee@gmail.com",
+    "position": "IT Head",
+    "record_status": "INACTIVE"
+  },
+  {
+    "employee_id": 49,
+    "employee_code": "E022",
+    "first_name": "feb",
+    "last_name": "twentyfive",
+    "email_address": "feb@gmail.com",
+    "position": "Finance Head",
+    "record_status": "Active"
+  },
+  {
+    "employee_id": 62,
+    "employee_code": "E032",
+    "first_name": "gundam",
+    "last_name": "abondo",
+    "email_address": "employee1233456@gmail.com",
+    "position": "Finance Head",
+    "record_status": "Active"
+  },
+  {
+    "employee_id": 41,
+    "employee_code": "E017",
+    "first_name": "awertyuk",
+    "last_name": "asdfg",
+    "email_address": "employee1243@gmail.com",
+    "position": "Finance Head",
+    "record_status": "ACTIVE"
+  },
+  {
+    "employee_id": 44,
+    "employee_code": "E018",
+    "first_name": "sadfghjkhgfdsa",
+    "last_name": "SDFGHJGFDSA",
+    "email_address": "EMPLOYEE@gmail.com",
+    "position": "Finance Head",
+    "record_status": "Active"
+  },
+  {
+    "employee_id": 3,
+    "employee_code": "M001",
+    "first_name": "Manager",
+    "last_name": "User",
+    "email_address": "manager@gracewell.com",
+    "position": "Operations Manager",
+    "record_status": "Active"
+  },
+  {
+    "employee_id": 45,
+    "employee_code": "E019",
+    "first_name": "joshua",
+    "last_name": "garcia",
+    "email_address": "joshuag@gmail.com",
+    "position": "IT Support",
+    "record_status": "ACTIVE"
+  },
+  {
+    "employee_id": 6,
+    "employee_code": "E003",
+    "first_name": "Liora",
+    "last_name": "Vale",
+    "email_address": "employee@gmail.com",
+    "position": "IT Head",
+    "record_status": "ACTIVE"
+  },
+  {
+    "employee_id": 36,
+    "employee_code": "E013",
+    "first_name": "mangben",
+    "last_name": "polendey",
+    "email_address": "employee6@gmail.com",
+    "position": "IT Head",
+    "record_status": "Active"
+  },
+  {
+    "employee_id": 51,
+    "employee_code": "E024",
+    "first_name": "frieda",
+    "last_name": "magaan",
+    "email_address": "magaan@gmail.com",
+    "position": "Finance Head",
+    "record_status": "Active"
+  },
+  {
+    "employee_id": 54,
+    "employee_code": "E025",
+    "first_name": "feb",
+    "last_name": "twentyfiveee",
+    "email_address": "twentyfive@gmail.com",
+    "position": "Finance Head",
+    "record_status": "Active"
+  },
+  {
+    "employee_id": 59,
+    "employee_code": "E029",
+    "first_name": "yza",
+    "last_name": "ocampo",
+    "email_address": "rizal@gmail.com",
+    "position": "Operations Head",
+    "record_status": "inactive"
+  },
+  {
+    "employee_id": 58,
+    "employee_code": "E028",
+    "first_name": "Tricia",
+    "last_name": "Sanchez",
+    "email_address": "tricia@gmail.com",
+    "position": "Operations Head",
+    "record_status": "Active"
+  },
+  {
+    "employee_id": 50,
+    "employee_code": "E023",
+    "first_name": "hershey",
+    "last_name": "dalangin",
+    "email_address": "hershey@gmail.com",
+    "position": "Finance Head",
+    "record_status": "Active"
+  },
+  {
+    "employee_id": 57,
+    "employee_code": "E027",
+    "first_name": "Mariel",
+    "last_name": "Vaflor",
+    "email_address": "marvaf@gmail.com",
+    "position": "Operations Head",
+    "record_status": "inactive"
+  },
+  {
+    "employee_id": 55,
+    "employee_code": "E026",
+    "first_name": "ray",
+    "last_name": "adas",
+    "email_address": "dsfadsa@gmail.com",
+    "position": "Operations Head",
+    "record_status": "inactive"
+  },
+  {
+    "employee_id": 60,
+    "employee_code": "E030",
+    "first_name": "Linda",
+    "last_name": "Walker",
+    "email_address": "linda719@gmail.com",
+    "position": "IT Support",
+    "record_status": "Active"
+  },
+  {
+    "employee_id": 2,
+    "employee_code": "GW002",
+    "first_name": "Admin",
+    "last_name": "Uchiha",
+    "email_address": "admin@gracewell.com",
+    "position": "Administrator",
+    "record_status": "Active"
+  },
+  {
+    "employee_id": 78,
+    "employee_code": "SA001",
+    "first_name": "Super",
+    "last_name": "Admin",
+    "email_address": "superadmin@gracewell.com",
+    "position": "Super Admin",
+    "record_status": "Active"
+  },
+  {
+    "employee_id": 1,
+    "employee_code": "GW001",
+    "first_name": "Super",
+    "last_name": "ADMIN",
+    "email_address": "gracewll Nexus@gmail.com",
+    "position": "Super Admin",
+    "record_status": "Active"
+  },
+  {
+    "employee_id": 80,
+    "employee_code": "A002",
+    "first_name": "Alice",
+    "last_name": "Admin",
+    "email_address": "alice@gracewell.com",
+    "position": "HR Administrator",
+    "record_status": "Active"
+  }
+]

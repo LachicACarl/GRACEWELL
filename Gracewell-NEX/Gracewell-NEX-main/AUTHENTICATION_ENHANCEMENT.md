@@ -32,7 +32,7 @@ if (rateLimitCheck.limited) {
 ## 2. ✅ COMPREHENSIVE VALIDATION
 
 ### Frontend Validation (Login.js)
-- **Employee ID Format**: Pattern validation (e.g., SA001, M001, E001)
+- **Employee ID Format**: Pattern validation (e.g., GW001, M001, GW003)
   - Pattern: `/^[A-Za-z]{1,3}\d{1,4}$/`
   - Validates on blur with real-time error messages
   
@@ -127,7 +127,7 @@ validatePasswordStrength(password) {
   "module": "authentication",
   "timestamp": "2026-02-15T10:30:00Z",
   "notes": {
-    "employeeId": "SA001",
+    "employeeId": "GW001",
     "role": "super_admin",
     "clientIp": "192.168.1.100",
     "loginMode": "password"

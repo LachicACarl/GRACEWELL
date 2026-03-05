@@ -19,7 +19,7 @@ Your password reset system now generates **clickable reset links in the server c
 ================================================================================
 User: Super Admin
 Email: superadmin@gracewell.com
-Employee Code: SA001
+Employee Code: GW001
 
 Reset Link:
 http://localhost:3000/reset-password?token=abc123xyz...
@@ -34,10 +34,10 @@ Expires: 2/18/2026, 12:55:30 AM
 
 1. Go to: http://localhost:3000/forgot-password
 2. Enter one of these test emails:
-   - `superadmin@gracewell.com` (SA001 - Super Admin)
-   - `admin@gracewell.com` (A001 - Admin)
+   - `superadmin@gracewell.com` (GW001 - Super Admin)
+   - `admin@gracewell.com` (GW002 - Admin)
    - `manager@gracewell.com` (M001 - Manager)
-   - `john@gracewell.com` (E001 - Employee)
+   - `john@gracewell.com` (GW003 - Employee)
 
 3. Click "Send Reset Link"
 4. **Check the server terminal** in VS Code for the reset link (see Option 1 above)
@@ -91,18 +91,18 @@ Then check the server terminal for the reset link.
 
 4. **Login with New Password:**
    - Go to http://localhost:3000/login
-   - Employee ID: `A001`
+   - Employee ID: `GW002`
    - Password: `newpassword123`
 
 ## 📝 Available Test Accounts
 
 | Employee Code | Email | Role | Current Password |
 |--------------|-------|------|------------------|
-| SA001 | superadmin@gracewell.com | super_admin | admin123 |
-| A001 | admin@gracewell.com | admin | admin123 |
+| GW001 | superadmin@gracewell.com | super_admin | admin123 |
+| GW002 | admin@gracewell.com | admin | admin123 |
 | M001 | manager@gracewell.com | manager | manager12 |
-| E001 | john@gracewell.com | employee | emp123 |
-| E002 | sarah@gracewell.com | employee | emp123 |
+| GW003 | john@gracewell.com | employee | emp123 |
+| GW004 | sarah@gracewell.com | employee | emp123 |
 
 ## 🚀 Next Steps for Production
 

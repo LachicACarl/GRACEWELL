@@ -13,6 +13,7 @@ const ExcelJS = require('exceljs');
 const QRCode = require('qrcode');
 const db = require('./database');
 const authMiddleware = require('./auth-middleware');
+const emailService = require('./emailService');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -1284,65 +1285,41 @@ app.post('/auth/request-password-reset-link', async (req, res) => {
 
       return res.json({ success: true, message: 'If the email exists, a reset link has been sent.' });
     }
-
-    // Use Supabase Auth to send password reset email
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-
-    console.log('[PASSWORD_RESET] Sending reset email via Supabase Auth for:', email);
-
-    const response = await fetch(`${supabaseUrl}/auth/v1/recover`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`
-      },
-      body: JSON.stringify({
-        email: email,
-        options: {
-          redirectTo: `${frontendUrl}/reset-password`
-        }
-      })
-    });
-
-    const responseText = await response.text();
+    // Generate reset token for all environments
+    const token = authMiddleware.generateResetToken();
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
     
-    if (!response.ok) {
-      console.error('[PASSWORD_RESET] Supabase error:', responseText);
-      console.warn('[PASSWORD_RESET] Supabase email service not available (SMTP may not be configured)');
-    } else {
-      console.log('[PASSWORD_RESET] Supabase /auth/v1/recover called successfully');
-      console.warn('[PASSWORD_RESET] Note: If SMTP is not configured in Supabase, no email will be sent');
+    // Store token in memory
+    if (!global.passwordResetTokens) {
+      global.passwordResetTokens = {};
     }
+    global.passwordResetTokens[tokenHash] = {
+      email: employee.email_address,
+      employeeCode: employee.employee_code,
+      userId: account.user_id,
+      employeeId: employee.employee_id,
+      expiresAt,
+      used: false
+    };
     
-    // ALWAYS generate development reset link when not in production
-    // This is because Supabase returns 200 OK even without SMTP configured
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
+
+    // Send password reset email using Nodemailer
+    console.log('[PASSWORD_RESET] Sending reset email via Nodemailer for:', email);
+    const emailResult = await emailService.sendPasswordResetEmail(email, token, resetUrl);
+
+    if (!emailResult.success) {
+      console.warn('[PASSWORD_RESET] Email send failed:', emailResult.error);
+    } else if (!emailResult.delivered) {
+      console.warn('[PASSWORD_RESET] Email reset link was logged to console (SMTP not configured).');
+    }
+
+    // Log development reset link
     if (process.env.NODE_ENV !== 'production') {
-      console.log('[PASSWORD_RESET] Development mode - generating local reset link...');
-      
-      // Generate manual token for development
-      const token = authMiddleware.generateResetToken();
-      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-      const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
-      
-      // Store token in memory
-      if (!global.passwordResetTokens) {
-        global.passwordResetTokens = {};
-      }
-      global.passwordResetTokens[tokenHash] = {
-        email: employee.email_address,
-        employeeCode: employee.employee_code,
-        userId: account.user_id,
-        employeeId: employee.employee_id,
-        expiresAt,
-        used: false
-      };
-      
-      const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
       console.log('\n' + '='.repeat(80));
-      console.log('🔐 PASSWORD RESET LINK (DEVELOPMENT MODE - USE THIS LINK)');
+      console.log('🔐 PASSWORD RESET LINK (DEVELOPMENT MODE)');
       console.log('='.repeat(80));
       console.log(`User: ${employee.first_name} ${employee.last_name}`);
       console.log(`Email: ${email}`);
@@ -1362,12 +1339,22 @@ app.post('/auth/request-password-reset-link', async (req, res) => {
       notes: JSON.stringify({
         email: employee.email_address,
         clientIp,
-        via: 'supabase_auth',
+        via: emailResult.mode || 'unknown',
+        delivered: Boolean(emailResult.delivered),
         timestamp: new Date().toISOString()
       })
     });
 
-    return res.json({ success: true, message: 'If the email exists, a reset link has been sent.' });
+    const shouldReturnDevLink = process.env.NODE_ENV !== 'production' && (!emailResult.success || !emailResult.delivered);
+    const responseMessage = shouldReturnDevLink
+      ? 'Reset link generated, but SMTP email is not configured. Use the development reset link below or configure EMAIL_SERVICE/SMTP settings.'
+      : 'If the email exists, a reset link has been sent.';
+
+    return res.json({
+      success: true,
+      message: responseMessage,
+      ...(shouldReturnDevLink ? { devResetLink: resetUrl } : {})
+    });
   } catch (err) {
     console.error('[PASSWORD_RESET] Error:', err);
     try {
@@ -1612,6 +1599,64 @@ app.post('/auth/test-email', async (req, res) => {
       success: false,
       message: 'Test email error',
       error: err.message 
+    });
+  }
+});
+
+// Test Nodemailer email configuration
+app.post('/auth/test-email-config', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const recipientEmail = email || process.env.EMAIL_USER || 'test@example.com';
+
+    console.log('[EMAIL_CONFIG_TEST] Testing email configuration with:', recipientEmail);
+
+    const result = await emailService.testEmailConfiguration(recipientEmail);
+
+    if (result.success && result.delivered) {
+      return res.json({
+        success: true,
+        message: 'Email configuration test successful!',
+        details: {
+          recipient: recipientEmail,
+          messageId: result.messageId,
+          emailService: process.env.EMAIL_SERVICE || 'Custom SMTP (via Nodemailer)',
+          note: 'Check your inbox for the test email'
+        }
+      });
+    } else if (result.success && !result.delivered) {
+      return res.status(400).json({
+        success: false,
+        message: 'SMTP is not configured. Test email was logged in the server console only.',
+        details: {
+          recipient: recipientEmail,
+          mode: result.mode || 'console',
+          hasEmailUser: !!process.env.EMAIL_USER,
+          hasEmailPassword: !!process.env.EMAIL_PASSWORD,
+          hasSmtpHost: !!process.env.SMTP_HOST,
+          hasSmtpPort: !!process.env.SMTP_PORT
+        }
+      });
+    } else {
+      return res.status(500).json({
+        success: false,
+        message: 'Email configuration test failed',
+        error: result.error,
+        config: {
+          emailService: process.env.EMAIL_SERVICE || 'Not configured',
+          hasEmailUser: !!process.env.EMAIL_USER,
+          hasEmailPassword: !!process.env.EMAIL_PASSWORD,
+          hasSmtpHost: !!process.env.SMTP_HOST,
+          hasSmtpPort: !!process.env.SMTP_PORT
+        }
+      });
+    }
+  } catch (err) {
+    console.error('[EMAIL_CONFIG_TEST] Error:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Email configuration test error',
+      error: err.message
     });
   }
 });

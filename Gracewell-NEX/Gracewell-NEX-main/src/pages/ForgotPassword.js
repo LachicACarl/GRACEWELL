@@ -7,6 +7,7 @@ const ForgotPassword = () => {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [devResetLink, setDevResetLink] = useState('');
   const [loading, setLoading] = useState(false);
   
   useEffect(() => {
@@ -17,6 +18,7 @@ const ForgotPassword = () => {
     e.preventDefault();
     setMessage('');
     setError('');
+    setDevResetLink('');
 
     if (!email) {
       setError('Please enter your email address');
@@ -41,6 +43,7 @@ const ForgotPassword = () => {
 
       console.log('Response received:', data);
       setMessage(data?.message || 'If the email exists, a reset link has been sent.');
+      setDevResetLink(data?.devResetLink || '');
       setError('');
       setEmail('');
     } catch (err) {
@@ -78,6 +81,14 @@ const ForgotPassword = () => {
           </div>
           {error && <div className="error-message">{error}</div>}
           {message && <div className="success-message">{message}</div>}
+          {devResetLink && (
+            <div className="success-message" style={{ marginTop: '10px', wordBreak: 'break-all' }}>
+              <strong>Development Reset Link:</strong>{' '}
+              <a href={devResetLink} target="_blank" rel="noopener noreferrer">
+                Open Reset Link
+              </a>
+            </div>
+          )}
           <button type="submit" className="btn-submit" disabled={loading}>
             {loading ? 'Sending...' : 'Send Reset Link'}
           </button>

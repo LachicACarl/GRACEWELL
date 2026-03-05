@@ -9,12 +9,12 @@ const supabase = createClient(
 );
 
 async function testLogin() {
-  console.log('Testing login for SA001...\n');
+  console.log('Testing login for GW001...\n');
   
   const { data: employee, error } = await supabase
     .from('employees')
     .select('employee_id, employee_code, first_name, last_name, record_status, user_accounts (user_id, username, password_hash, account_status, roles:role_id(role_name))')
-    .eq('employee_code', 'SA001')
+    .eq('employee_code', 'GW001')
     .single();
   
   if (error) {

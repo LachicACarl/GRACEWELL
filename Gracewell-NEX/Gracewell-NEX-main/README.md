@@ -54,10 +54,10 @@ Frontend runs on `http://localhost:3000`
 
 | Employee ID | Password | Role | Login Flow |
 |------------|----------|------|------------|
-| SA001 | admin123 | Super Admin | ID → Password → Sign In |
-| A001 | admin123 | Admin | ID → Password → Sign In |
-| E001 | emp123 | Employee | ID → Auto-redirect to QR Attendance |
-| E002 | emp123 | Employee | ID → Auto-redirect to QR Attendance |
+| GW001 | admin123 | Super Admin | ID → Password → Sign In |
+| GW002 | admin123 | Admin | ID → Password → Sign In |
+| GW003 | emp123 | Employee | ID → Auto-redirect to QR Attendance |
+| GW004 | emp123 | Employee | ID → Auto-redirect to QR Attendance |
 
 ## Project Structure
 

@@ -40,17 +40,17 @@ async function setupTestData() {
         position: 'Administrator'
       },
       {
-        employeeCode: 'GW003',
+        employeeCode: 'M001',
         firstName: 'Manager',
         lastName: 'User',
         email: 'manager@gracewell.com',
         role: 'manager',
-        password: 'Manager@123',
+        password: 'manager12',
         department: 'Operations',
         position: 'Operations Manager'
       },
       {
-        employeeCode: 'GW004',
+        employeeCode: 'GW003',
         firstName: 'John',
         lastName: 'Doe',
         email: 'john@gracewell.com',
@@ -60,7 +60,7 @@ async function setupTestData() {
         position: 'Staff'
       },
       {
-        employeeCode: 'GW005',
+        employeeCode: 'GW004',
         firstName: 'Jane',
         lastName: 'Smith',
         email: 'jane@gracewell.com',
