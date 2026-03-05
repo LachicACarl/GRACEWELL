@@ -70,6 +70,30 @@ const Login = ({ setUser }) => {
 
   const normalizeEmployeeCode = (id) => String(id || '').trim().toUpperCase();
 
+  // Persist user-specific failed attempts to localStorage
+  useEffect(() => {
+    if (idConfirmed && employeeId) {
+      const normalizedId = normalizeEmployeeCode(employeeId);
+      if (failedAttempts > 0) {
+        localStorage.setItem(`nexus_attempts_${normalizedId}`, failedAttempts.toString());
+      } else {
+        localStorage.removeItem(`nexus_attempts_${normalizedId}`);
+      }
+    }
+  }, [failedAttempts, idConfirmed, employeeId]);
+
+  // Persist user-specific lockout timer to localStorage
+  useEffect(() => {
+    if (idConfirmed && employeeId) {
+      const normalizedId = normalizeEmployeeCode(employeeId);
+      if (lockoutUntil) {
+        localStorage.setItem(`nexus_lockout_${normalizedId}`, lockoutUntil.toString());
+      } else {
+        localStorage.removeItem(`nexus_lockout_${normalizedId}`);
+      }
+    }
+  }, [lockoutUntil, idConfirmed, employeeId]);
+
   const transitionToStep = (step) => {
     setFadingOut(true);
     setTimeout(() => {
@@ -87,10 +111,16 @@ const Login = ({ setUser }) => {
         setPasswordTouched(false);
         setPasswordError('');
         setEmployeeLookupMessage('');
+        setFailedAttempts(0);
+        setLockoutUntil(null);
+        setLockoutRemaining(0);
       } else {
         setErrorMessage('');
         setIdConfirmed(false);
         setUserRole(null);
+        setFailedAttempts(0);
+        setLockoutUntil(null);
+        setLockoutRemaining(0);
       }
       setFadingOut(false);
     }, 200);
@@ -210,6 +240,14 @@ const Login = ({ setUser }) => {
       } else {
         // For admin/super_admin, show password field
         setIdConfirmed(true);
+
+        // Load user-specific lockout data
+        const normalizedId = normalizeEmployeeCode(id);
+        const savedAttempts = localStorage.getItem(`nexus_attempts_${normalizedId}`);
+        const savedLockout = localStorage.getItem(`nexus_lockout_${normalizedId}`);
+        
+        setFailedAttempts(savedAttempts ? parseInt(savedAttempts, 10) : 0);
+        setLockoutUntil(savedLockout ? parseInt(savedLockout, 10) : null);
       }
     }
   };
