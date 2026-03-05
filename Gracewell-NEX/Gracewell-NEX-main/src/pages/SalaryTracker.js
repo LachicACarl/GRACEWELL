@@ -442,15 +442,15 @@ const SalaryTracker = ({ user, onLogout }) => {
           <div className="summary-cards-row">
             <div className="summary-card">
               <div className="card-label">Total Salary</div>
-              <div className="card-value">₱{(totals.totalPayroll).toLocaleString('en-US', { maximumFractionDigits: 0 })}</div>
+              <div className="card-value">₱{(totals.totalSalary || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}</div>
             </div>
             <div className="summary-card">
               <div className="card-label">Pending Salaries</div>
-              <div className="card-value orange">₱{(totals.pending).toLocaleString('en-US', { maximumFractionDigits: 0 })}</div>
+              <div className="card-value orange">₱{(totals.pending || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}</div>
             </div>
             <div className="summary-card">
               <div className="card-label">Released Salaries</div>
-              <div className="card-value green">₱{(totals.released).toLocaleString('en-US', { maximumFractionDigits: 0 })}</div>
+              <div className="card-value green">₱{(totals.released || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}</div>
             </div>
             <div className="summary-card">
               <div className="card-label">Pending Employees</div>
@@ -463,15 +463,15 @@ const SalaryTracker = ({ user, onLogout }) => {
           <div className="summary-cards-row">
             <div className="summary-card">
               <div className="card-label">Total Salary</div>
-              <div className="card-value">₱{(totals.totalPayroll).toLocaleString('en-US', { maximumFractionDigits: 0 })}</div>
+              <div className="card-value">₱{(totals.totalSalary || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}</div>
             </div>
             <div className="summary-card">
               <div className="card-label">Pending Salaries</div>
-              <div className="card-value orange">₱{(totals.pending).toLocaleString('en-US', { maximumFractionDigits: 0 })}</div>
+              <div className="card-value orange">₱{(totals.pending || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}</div>
             </div>
             <div className="summary-card">
               <div className="card-label">Released Salaries</div>
-              <div className="card-value green">₱{(totals.released).toLocaleString('en-US', { maximumFractionDigits: 0 })}</div>
+              <div className="card-value green">₱{(totals.released || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}</div>
             </div>
             <div className="summary-card">
               <div className="card-label">Pending Employees</div>
@@ -1015,7 +1015,7 @@ const SalaryTracker = ({ user, onLogout }) => {
 
               <div className="receipt-row">
                 <span className="receipt-label-bold">Gross Salary:</span>
-                <span className="receipt-amount-green">₱ {receiptRecord.salary?.toLocaleString()}</span>
+                <span className="receipt-amount-green">₱ {(receiptRecord.salary || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
               </div>
               <div className="receipt-row">
                 <span className="receipt-label">Deductions:</span>
@@ -1023,7 +1023,7 @@ const SalaryTracker = ({ user, onLogout }) => {
               </div>
               <div className="receipt-row net-salary">
                 <span className="receipt-label-bold">Net Salary:</span>
-                <span className="receipt-amount-blue">₱ {receiptRecord.salary?.toLocaleString()}</span>
+                <span className="receipt-amount-blue">₱ {(receiptRecord.salary || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
               </div>
 
               <div className="receipt-divider"></div>
