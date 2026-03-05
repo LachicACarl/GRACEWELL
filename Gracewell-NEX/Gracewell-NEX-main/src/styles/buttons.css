@@ -1,0 +1,468 @@
+/* ========================================
+   GRACEWELL NEXUS - BUTTON DESIGN SYSTEM
+   Minimalist Color Scheme & Responsive Design
+   ======================================== */
+
+/* ========== BASE BUTTON STYLES ========== */
+button {
+  font-family: 'Nunito Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  transition: all 0.2s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ========== PRIMARY BUTTONS ========== */
+.btn-primary,
+.btn-submit,
+.btn-add,
+.login-button,
+.setup-button {
+  background: #2563eb;
+  color: #ffffff;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  min-width: 120px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.btn-primary:hover:not(:disabled),
+.btn-submit:hover:not(:disabled),
+.btn-add:hover:not(:disabled),
+.login-button:hover:not(:disabled),
+.setup-button:hover:not(:disabled) {
+  background: #1d4ed8;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active:not(:disabled),
+.btn-submit:active:not(:disabled),
+.btn-add:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* ========== SECONDARY BUTTONS ========== */
+.btn-secondary,
+.btn-cancel,
+.btn-reset {
+  background: #f1f5f9;
+  color: #475569;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  min-width: 120px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.btn-secondary:hover:not(:disabled),
+.btn-cancel:hover:not(:disabled),
+.btn-reset:hover:not(:disabled) {
+  background: #e2e8f0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+/* ========== SUCCESS/APPROVE BUTTONS ========== */
+.btn-success,
+.btn-approve,
+.btn-release {
+  background: #10b981;
+  color: #ffffff;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 100px;
+}
+
+.btn-success:hover:not(:disabled),
+.btn-approve:hover:not(:disabled),
+.btn-release:hover:not(:disabled) {
+  background: #059669;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+}
+
+/* ========== DANGER/DELETE BUTTONS ========== */
+.btn-danger,
+.btn-delete,
+.btn-deny {
+  background: #ef4444;
+  color: #ffffff;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 100px;
+}
+
+.btn-danger:hover:not(:disabled),
+.btn-delete:hover:not(:disabled),
+.btn-deny:hover:not(:disabled) {
+  background: #dc2626;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.25);
+}
+
+/* ========== ICON BUTTONS ========== */
+.btn-icon {
+  background: transparent;
+  color: #64748b;
+  padding: 8px;
+  border-radius: 6px;
+  min-width: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+/* ========== PILL BUTTONS ========== */
+.btn-pill,
+.pill-action {
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  min-width: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-pill.primary { background: #2563eb; color: #fff; }
+.btn-pill.secondary { background: #f1f5f9; color: #475569; }
+.btn-pill.success { background: #10b981; color: #fff; }
+.btn-pill.danger { background: #ef4444; color: #fff; }
+.btn-pill.warn { background: #f59e0b; color: #fff; }
+
+/* ========== DROPDOWN TRIGGER BUTTONS ========== */
+.btn-dropdown,
+.manage-btn,
+.manage-btn-dropdown,
+.export-btn {
+  background: #ffffff;
+  color: #475569;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid #e2e8f0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 100px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.btn-dropdown:hover:not(:disabled),
+.manage-btn:hover:not(:disabled),
+.manage-btn-dropdown:hover:not(:disabled),
+.export-btn:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* ========== SMALL BUTTONS ========== */
+.btn-sm,
+.btn-action-small {
+  padding: 6px 12px;
+  font-size: 13px;
+  min-width: 80px;
+  border-radius: 6px;
+}
+
+/* ========== LARGE BUTTONS ========== */
+.btn-lg {
+  padding: 14px 28px;
+  font-size: 16px;
+  min-width: 140px;
+  border-radius: 10px;
+}
+
+/* ========== FULL WIDTH BUTTONS ========== */
+.btn-block {
+  width: 100%;
+  display: block;
+}
+
+/* ========== BUTTON GROUPS ========== */
+.btn-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.btn-group.justify-end {
+  justify-content: flex-end;
+}
+
+.btn-group.justify-center {
+  justify-content: center;
+}
+
+.btn-group.justify-between {
+  justify-content: space-between;
+}
+
+/* ========== RESPONSIVE BREAKPOINTS ========== */
+
+/* Tablets and below */
+@media (max-width: 768px) {
+  .btn-primary,
+  .btn-secondary,
+  .btn-submit,
+  .btn-cancel,
+  .btn-add {
+    padding: 10px 20px;
+    font-size: 14px;
+    min-width: 100px;
+  }
+
+  .btn-group {
+    gap: 6px;
+  }
+
+  .btn-dropdown,
+  .manage-btn,
+  .export-btn {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+}
+
+/* Mobile devices */
+@media (max-width: 480px) {
+  .btn-primary,
+  .btn-secondary,
+  .btn-submit,
+  .btn-cancel,
+  .btn-add {
+    padding: 10px 16px;
+    font-size: 14px;
+    min-width: 90px;
+  }
+
+  .btn-group {
+    width: 100%;
+  }
+
+  .btn-group.mobile-stack {
+    flex-direction: column;
+  }
+
+  .btn-group.mobile-stack > * {
+    width: 100%;
+  }
+
+  .btn-sm {
+    padding: 6px 10px;
+    font-size: 12px;
+    min-width: 70px;
+  }
+
+  .btn-dropdown,
+  .manage-btn,
+  .export-btn {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+/* ========== STATUS PILLS ========== */
+.status-pill {
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+  text-align: center;
+}
+
+.status-pill.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-pill.released {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-pill.approved {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-pill.denied {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.status-pill.present {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-pill.absent {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.status-pill.incomplete {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* ========== FILTER BUTTONS ========== */
+.filter-btn {
+  background: #ffffff;
+  color: #64748b;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
+}
+
+.filter-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.filter-btn.active {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
+}
+
+/* ========== ACTION DROPDOWN MENUS ========== */
+.action-dropdown-menu,
+.manage-dropdown,
+.export-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: none;
+  min-width: 180px;
+  z-index: 100;
+  overflow: hidden;
+}
+
+.action-dropdown-menu button,
+.manage-dropdown button,
+.export-dropdown-menu button {
+  width: 100%;
+  padding: 10px 14px;
+  text-align: center;
+  background: transparent;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+  margin: 0;
+  box-shadow: none;
+  outline: none;
+}
+
+.action-dropdown-menu button:not(:last-child),
+.manage-dropdown button:not(:last-child),
+.export-dropdown-menu button:not(:last-child) {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.action-dropdown-menu button:last-child,
+.manage-dropdown button:last-child,
+.export-dropdown-menu button:last-child {
+  /* No additional styles needed */
+}
+
+.action-dropdown-menu button:hover,
+.manage-dropdown button:hover,
+.export-dropdown-menu button:hover {
+  background: #f8fafc;
+}
+
+.action-dropdown-menu button.danger:hover {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.action-dropdown-menu button.success:hover {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+/* ========== CLOSE BUTTONS ========== */
+.close-btn,
+.modal-close {
+  background: transparent;
+  color: #94a3b8;
+  font-size: 24px;
+  padding: 4px;
+  min-width: auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.close-btn:hover,
+.modal-close:hover {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+/* ========== UTILITY CLASSES ========== */
+.btn-loading {
+  position: relative;
+  color: transparent !important;
+}
+
+.btn-loading::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  top: 50%;
+  left: 50%;
+  margin-left: -8px;
+  margin-top: -8px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  border-top-color: transparent;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

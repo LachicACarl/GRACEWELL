@@ -1,0 +1,92 @@
+.verify-email-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8f9fb 0%, #e6edf7 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.verify-email-card {
+  width: 100%;
+  max-width: 460px;
+  background-color: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.1);
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+}
+
+.verify-email-card.success {
+  border-color: #c8e6c9;
+}
+
+.verify-email-card.error {
+  border-color: #ffcdd2;
+}
+
+.card-header {
+  padding: 24px 28px 12px;
+  background-color: #f7f8fb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.card-header h1 {
+  margin: 0;
+  font-size: 22px;
+  color: #1e3a5f;
+}
+
+.card-body {
+  padding: 22px 28px 28px;
+}
+
+.status-message {
+  margin: 0 0 22px 0;
+  color: #475569;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.card-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.btn-primary,
+.btn-secondary {
+  border: none;
+  padding: 10px 18px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background-color: #f4c10f;
+  color: #1e3a5f;
+}
+
+.btn-primary:hover {
+  background-color: #e8b30f;
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background-color: #e5e7eb;
+  color: #1e3a5f;
+}
+
+.btn-secondary:hover {
+  background-color: #d6d9de;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 480px) {
+  .card-actions {
+    flex-direction: column;
+  }
+}

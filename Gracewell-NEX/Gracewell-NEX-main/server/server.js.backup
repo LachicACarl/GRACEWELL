@@ -1,0 +1,1648 @@
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const multer = require('multer');
+const { createClient } = require('@supabase/supabase-js');
+const PDFDocument = require('pdfkit');
+const db = require('./database');
+
+const app = express();
+const PORT = process.env.PORT || 4000;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Multer for file uploads
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB
+});
+
+// Supabase client (optional, for image storage)
+const supabase = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY
+  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+  : null;
+
+// JWT Middleware
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ message: 'Access token required' });
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ message: 'Invalid or expired token' });
+    }
+    req.user = user;
+    next();
+  });
+};
+
+// ========== AUTH ROUTES ==========
+
+// Check employee role by ID (no auth required)
+app.post('/auth/check-employee', async (req, res) => {
+  const { employeeId } = req.body;
+
+  if (!employeeId) {
+    return res.status(400).json({ message: 'Employee ID is required' });
+  }
+
+  try {
+    const { data: user, error } = await db
+      .from('users')
+      .select('employee_id, role, name, status')
+      .eq('employee_id', employeeId)
+      .single();
+
+    if (error || !user) {
+      return res.status(401).json({ message: 'Employee ID not found' });
+    }
+
+    res.json({
+      found: true,
+      role: user.role,
+      name: user.name,
+      status: user.status,
+      requiresPassword: user.role !== 'employee' // Admin and manager need password
+    });
+  } catch (err) {
+    return res.status(500).json({ message: 'Database error' });
+  }
+});
+
+// Login
+app.post('/auth/login', async (req, res) => {
+  const { employeeId, password } = req.body;
+
+  try {
+    const { data: user, error } = await db
+      .from('users')
+      .select('*')
+      .eq('employee_id', employeeId)
+      .ilike('status', 'active')
+      .single();
+
+    if (error || !user) {
+      return res.status(401).json({ message: 'Invalid credentials or inactive account' });
+    }
+
+    // For employees: allow login without password (QR attendance mode)
+    if (user.role === 'employee' && (!password || password === '')) {
+      const token = jwt.sign(
+        { id: user.employee_id, role: user.role, purpose: 'attendance' },
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+      );
+
+      return res.json({
+        accessToken: token,
+        user: {
+          employeeId: user.employee_id,
+          employeeName: user.name,
+          userRole: user.role,
+          email: user.email,
+          status: user.status,
+          profileImage: user.profile_image_url,
+          isAttendanceMode: true
+        }
+      });
+    }
+
+    // For admin/manager or when password is provided: require password verification
+    if (!password || password === '') {
+      return res.status(401).json({ message: 'Password is required' });
+    }
+
+    const passwordValid = await bcrypt.compare(password, user.password_hash);
+    if (!passwordValid) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    const token = jwt.sign(
+      { id: user.employee_id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+    );
+
+    res.json({
+      accessToken: token,
+      user: {
+        employeeId: user.employee_id,
+        employeeName: user.name,
+        userRole: user.role,
+        email: user.email,
+        status: user.status,
+        profileImage: user.profile_image_url
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ message: 'Database error', error: err.message });
+  }
+});
+
+// Attendance QR Login - Employee ID only (no password required)
+app.post('/auth/qr-login', async (req, res) => {
+  const { employeeId } = req.body;
+
+  if (!employeeId) {
+    return res.status(400).json({ message: 'Employee ID is required' });
+  }
+
+  try {
+    const { data: user, error } = await db
+      .from('users')
+      .select('id, employee_id, name, role, status, qr_code, qr_image_url')
+      .eq('employee_id', employeeId)
+      .eq('status', 'active')
+      .single();
+
+    if (error || !user) {
+      return res.status(401).json({ message: 'Employee ID not found or inactive' });
+    }
+
+    // Generate temporary attendance session token
+    const token = jwt.sign(
+      { id: user.employee_id, role: user.role, purpose: 'attendance' },
+      process.env.JWT_SECRET,
+      { expiresIn: '30m' } // Short expiry for attendance session
+    );
+
+    res.json({
+      success: true,
+      accessToken: token,
+      user: {
+        employeeId: user.employee_id,
+        employeeName: user.name,
+        userRole: user.role,
+        qrCode: user.qr_code,
+        qrImageUrl: user.qr_image_url
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ message: 'Database error', error: err.message });
+  }
+});
+
+// Verify session
+app.get('/auth/me', authenticateToken, async (req, res) => {
+  try {
+    const { data: user, error } = await db
+      .from('users')
+      .select('*')
+      .eq('employee_id', req.user.id)
+      .single();
+
+    if (error || !user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({
+      user: {
+        employeeId: user.employee_id,
+        employeeName: user.name,
+        userRole: user.role,
+        email: user.email,
+        status: user.status,
+        profileImage: user.profile_image_url
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ message: 'Database error' });
+  }
+});
+
+// Setup password - Employee uses activation token to set password
+app.post('/auth/setup-password', (req, res) => {
+  const { token, password, confirmPassword } = req.body;
+
+  // Validate input
+  if (!token || !password || !confirmPassword) {
+    return res.status(400).json({ message: 'Missing required fields' });
+  }
+
+  if (password !== confirmPassword) {
+    return res.status(400).json({ message: 'Passwords do not match' });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({ message: 'Password must be at least 6 characters' });
+  }
+
+  // Find user with valid activation token
+  db.get(
+    'SELECT * FROM users WHERE activation_token = ? AND account_status = ?',
+    [token, 'PENDING'],
+    (err, user) => {
+      if (err || !user) {
+        return res.status(404).json({ message: 'Invalid or expired activation token' });
+      }
+
+      // Check if token has expired
+      if (new Date(user.activation_expiry) < new Date()) {
+        return res.status(400).json({ message: 'Activation token has expired' });
+      }
+
+      // Hash the new password
+      bcrypt.hash(password, 10, (err, hash) => {
+        if (err) {
+          return res.status(500).json({ message: 'Failed to process password' });
+        }
+
+        // Update user account
+        db.run(
+          `UPDATE users SET password_hash = ?, account_status = 'ACTIVE', activation_token = NULL, activation_expiry = NULL WHERE id = ?`,
+          [hash, user.id],
+          (err) => {
+            if (err) {
+              return res.status(500).json({ message: 'Failed to update password' });
+            }
+
+            res.json({
+              success: true,
+              message: 'Password set successfully! You can now login.',
+              redirectUrl: '/login'
+            });
+          }
+        );
+      });
+    }
+  );
+});
+
+// Forgot Password - Step 1: Send verification code
+app.post('/auth/forgot-password', (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: 'Email is required' });
+  }
+
+  // Check if email exists
+  db.get(
+    'SELECT id, employee_id, name, email FROM users WHERE email = ?',
+    [email],
+    (err, user) => {
+      if (err || !user) {
+        // Don't reveal if email exists
+        return res.json({ success: true, message: 'If email exists, verification code has been sent' });
+      }
+
+      // Generate 6-digit verification code
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiryTime = new Date();
+      expiryTime.setMinutes(expiryTime.getMinutes() + 10); // Expires in 10 minutes
+
+      // Store verification code (temporarily in memory - for production use Redis or database)
+      if (!global.passwordResetCodes) {
+        global.passwordResetCodes = {};
+      }
+      global.passwordResetCodes[email] = {
+        code: verificationCode,
+        expiry: expiryTime.getTime()
+      };
+
+      // TODO: Send email with verification code
+      // For development, log to console
+      console.log(`🔐 Password Reset Code for ${email}: ${verificationCode}`);
+
+      res.json({
+        success: true,
+        message: 'Verification code sent to email',
+        // For development only - remove in production
+        devCode: verificationCode
+      });
+    }
+  );
+});
+
+// Forgot Password - Step 2: Verify code and reset password
+app.post('/auth/reset-password', (req, res) => {
+  const { email, verificationCode, newPassword, confirmPassword } = req.body;
+
+  if (!email || !verificationCode || !newPassword || !confirmPassword) {
+    return res.status(400).json({ message: 'Missing required fields' });
+  }
+
+  if (newPassword !== confirmPassword) {
+    return res.status(400).json({ message: 'Passwords do not match' });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ message: 'Password must be at least 6 characters' });
+  }
+
+  // Check verification code
+  if (!global.passwordResetCodes || !global.passwordResetCodes[email]) {
+    return res.status(400).json({ message: 'Invalid verification code' });
+  }
+
+  const { code, expiry } = global.passwordResetCodes[email];
+
+  // Check if code matches and hasn't expired
+  if (code !== verificationCode || Date.now() > expiry) {
+    delete global.passwordResetCodes[email];
+    return res.status(400).json({ message: 'Invalid or expired verification code' });
+  }
+
+  // Find user and update password
+  db.get(
+    'SELECT id FROM users WHERE email = ?',
+    [email],
+    (err, user) => {
+      if (err || !user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Hash new password
+      bcrypt.hash(newPassword, 10, (err, hash) => {
+        if (err) {
+          return res.status(500).json({ message: 'Failed to process password' });
+        }
+
+        // Update password
+        db.run(
+          'UPDATE users SET password_hash = ? WHERE id = ?',
+          [hash, user.id],
+          (err) => {
+            if (err) {
+              return res.status(500).json({ message: 'Failed to reset password' });
+            }
+
+            // Clear verification code
+            delete global.passwordResetCodes[email];
+
+            res.json({
+              success: true,
+              message: 'Password reset successfully'
+            });
+          }
+        );
+      });
+    }
+  );
+});
+
+// Setup password - Employee uses activation token to set password
+app.post('/auth/setup-password', (req, res) => {
+  const { token, password, confirmPassword } = req.body;
+
+  // Validate input
+  if (!token || !password || !confirmPassword) {
+    return res.status(400).json({ message: 'Missing required fields' });
+  }
+
+  if (password !== confirmPassword) {
+    return res.status(400).json({ message: 'Passwords do not match' });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({ message: 'Password must be at least 6 characters' });
+  }
+
+  // Find user with valid activation token
+  db.get(
+    'SELECT * FROM users WHERE activation_token = ? AND account_status = ?',
+    [token, 'PENDING'],
+    (err, user) => {
+      if (err || !user) {
+        return res.status(404).json({ message: 'Invalid or expired activation token' });
+      }
+
+      // Check if token has expired
+      if (new Date(user.activation_expiry) < new Date()) {
+        return res.status(400).json({ message: 'Activation token has expired' });
+      }
+
+      // Hash the new password
+      bcrypt.hash(password, 10, (err, hash) => {
+        if (err) {
+          return res.status(500).json({ message: 'Failed to process password' });
+        }
+
+        // Update user account
+        db.run(
+          `UPDATE users SET password_hash = ?, account_status = 'ACTIVE', activation_token = NULL, activation_expiry = NULL WHERE id = ?`,
+          [hash, user.id],
+          (err) => {
+            if (err) {
+              return res.status(500).json({ message: 'Failed to update password' });
+            }
+
+            res.json({
+              success: true,
+              message: 'Password set successfully! You can now login.',
+              redirectUrl: '/login'
+            });
+          }
+        );
+      });
+    }
+  );
+});
+
+// Verify activation token
+app.get('/auth/verify-token/:token', (req, res) => {
+  const { token } = req.params;
+
+  db.get(
+    'SELECT id, employee_id, name, email FROM users WHERE activation_token = ? AND account_status = ?',
+    [token, 'PENDING'],
+    (err, user) => {
+      if (err || !user) {
+        return res.status(404).json({ message: 'Invalid activation token' });
+      }
+
+      // Check if token has expired
+      if (new Date(user.activation_expiry) < new Date()) {
+        return res.status(400).json({ message: 'Activation token has expired' });
+      }
+
+      res.json({
+        valid: true,
+        user: {
+          employeeId: user.employee_id,
+          name: user.name,
+          email: user.email
+        }
+      });
+    }
+  );
+});
+
+// ========== ATTENDANCE ROUTES ==========
+
+// Check-in/Check-out
+app.post('/attendance/check-in', authenticateToken, upload.single('image'), async (req, res) => {
+  const { employeeId, method, source } = req.body;
+  const targetEmployeeId = employeeId || req.user.id;
+  const today = new Date().toISOString().split('T')[0];
+
+  // Get user ID
+  db.get('SELECT id FROM users WHERE employee_id = ?', [targetEmployeeId], async (err, user) => {
+    if (err || !user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const userId = user.id;
+
+    // Check existing attendance for today
+    db.get(
+      'SELECT * FROM attendance WHERE user_id = ? AND date = ?',
+      [userId, today],
+      async (err, attendance) => {
+        if (err) {
+          return res.status(500).json({ message: 'Database error' });
+        }
+
+        let imageUrl = null;
+
+        // Upload image to Supabase if provided
+        if (req.file && supabase) {
+          const fileName = `${today}/${targetEmployeeId}_${Date.now()}.jpg`;
+          const { data, error } = await supabase.storage
+            .from(process.env.SUPABASE_BUCKET || 'attendance-images')
+            .upload(fileName, req.file.buffer, {
+              contentType: req.file.mimetype,
+              cacheControl: '3600'
+            });
+
+          if (!error) {
+            imageUrl = supabase.storage
+              .from(process.env.SUPABASE_BUCKET || 'attendance-images')
+              .getPublicUrl(fileName).data.publicUrl;
+          }
+        }
+
+        const now = new Date().toISOString();
+
+        if (!attendance) {
+          // First check-in of the day
+          db.run(
+            `INSERT INTO attendance (user_id, date, check_in, method, image_url, source) VALUES (?, ?, ?, ?, ?, ?)`,
+            [userId, today, now, method, imageUrl, source || 'scanner'],
+            (err) => {
+              if (err) {
+                return res.status(500).json({ message: 'Failed to record attendance' });
+              }
+              res.json({ action: 'check_in', message: 'Check-in recorded successfully' });
+            }
+          );
+        } else if (attendance.check_in && !attendance.check_out) {
+          // Check-out
+          db.run(
+            `UPDATE attendance SET check_out = ?, image_url = COALESCE(?, image_url) WHERE id = ?`,
+            [now, imageUrl, attendance.id],
+            (err) => {
+              if (err) {
+                return res.status(500).json({ message: 'Failed to record check-out' });
+              }
+              res.json({ action: 'check_out', message: 'Check-out recorded successfully' });
+            }
+          );
+        } else {
+          res.status(400).json({ message: 'Attendance already completed for today' });
+        }
+      }
+    );
+  });
+});
+
+// Get attendance records
+app.get('/attendance/records', authenticateToken, (req, res) => {
+  const { startDate, endDate, department, employeeId } = req.query;
+  
+  let query = `
+    SELECT a.*, u.employee_id, u.name, u.role, u.department
+    FROM attendance a
+    JOIN users u ON a.user_id = u.id
+    WHERE 1=1
+  `;
+  const params = [];
+
+  if (startDate) {
+    query += ' AND a.date >= ?';
+    params.push(startDate);
+  }
+  if (endDate) {
+    query += ' AND a.date <= ?';
+    params.push(endDate);
+  }
+  if (department && department !== 'all') {
+    query += ' AND u.department = ?';
+    params.push(department);
+  }
+  if (employeeId) {
+    query += ' AND u.employee_id = ?';
+    params.push(employeeId);
+  }
+
+  query += ' ORDER BY a.date DESC, a.check_in DESC';
+
+  db.all(query, params, (err, records) => {
+    if (err) {
+      return res.status(500).json({ message: 'Database error' });
+    }
+    res.json({ records });
+  });
+});
+
+// Update attendance record (admin only)
+app.put('/attendance/records/:id', authenticateToken, (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+    return res.status(403).json({ message: 'Unauthorized' });
+  }
+
+  const { id } = req.params;
+  const { check_in, check_out } = req.body;
+
+  db.run(
+    'UPDATE attendance SET check_in = ?, check_out = ? WHERE id = ?',
+    [check_in, check_out, id],
+    (err) => {
+      if (err) {
+        return res.status(500).json({ message: 'Failed to update attendance' });
+      }
+      res.json({ success: true, message: 'Attendance updated successfully' });
+    }
+  );
+});
+
+// Approve/Deny attendance record (admin/manager only)
+app.put('/attendance/records/:id/approval', authenticateToken, (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'super_admin' && req.user.role !== 'manager') {
+    return res.status(403).json({ message: 'Unauthorized' });
+  }
+
+  const { id } = req.params;
+  const { status } = req.body;
+
+  if (!status || !['Approved', 'Denied', 'Pending'].includes(status)) {
+    return res.status(400).json({ message: 'Invalid approval status' });
+  }
+
+  const ensureApprovalColumns = (next) => {
+    db.all('PRAGMA table_info(attendance)', (err, columns) => {
+      if (err) {
+        return res.status(500).json({ message: 'Failed to inspect attendance table' });
+      }
+
+      const columnNames = new Set(columns.map((c) => c.name));
+      const needsApprovalStatus = !columnNames.has('approval_status');
+      const needsApprovalUpdatedAt = !columnNames.has('approval_updated_at');
+
+      const addApprovalStatus = (cb) => {
+        if (!needsApprovalStatus) return cb();
+        db.run('ALTER TABLE attendance ADD COLUMN approval_status TEXT', (alterErr) => {
+          if (alterErr && !String(alterErr.message || '').includes('duplicate column')) {
+            return res.status(500).json({ message: 'Failed to migrate approval_status column' });
+          }
+          cb();
+        });
+      };
+
+      const addApprovalUpdatedAt = (cb) => {
+        if (!needsApprovalUpdatedAt) return cb();
+        db.run('ALTER TABLE attendance ADD COLUMN approval_updated_at DATETIME', (alterErr) => {
+          if (alterErr && !String(alterErr.message || '').includes('duplicate column')) {
+            return res.status(500).json({ message: 'Failed to migrate approval_updated_at column' });
+          }
+          cb();
+        });
+      };
+
+      addApprovalStatus(() => addApprovalUpdatedAt(next));
+    });
+  };
+
+  ensureApprovalColumns(() => {
+    db.run(
+      'UPDATE attendance SET approval_status = ?, approval_updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [status, id],
+      function (err) {
+        if (err) {
+          return res.status(500).json({ message: 'Failed to update approval status' });
+        }
+        if (this.changes === 0) {
+          return res.status(404).json({ message: 'Attendance record not found' });
+        }
+        res.json({ success: true, message: `Attendance ${status.toLowerCase()}` });
+      }
+    );
+  });
+});
+
+// ========== SALARY ROUTES ==========
+
+// Get salary records
+app.get('/salary/records', authenticateToken, (req, res) => {
+  const { startDate, endDate, status, employeeId } = req.query;
+  const isEmployee = req.user.role === 'employee';
+  
+  let query = `
+    SELECT s.*, u.employee_id, u.name, u.role as position, u.department
+    FROM salary s
+    JOIN users u ON s.user_id = u.id
+    WHERE 1=1
+  `;
+  const params = [];
+
+  // Employees can only see their own records
+  if (isEmployee) {
+    query += ' AND s.user_id = ?';
+    params.push(req.user.id);
+  } else if (employeeId) {
+    query += ' AND u.employee_id = ?';
+    params.push(employeeId);
+  }
+
+  if (startDate) {
+    query += ' AND s.period_start >= ?';
+    params.push(startDate);
+  }
+  if (endDate) {
+    query += ' AND s.period_end <= ?';
+    params.push(endDate);
+  }
+  if (status && status !== 'All') {
+    query += ' AND s.status = ?';
+    params.push(status);
+  }
+
+  query += ' ORDER BY s.period_end DESC';
+
+  db.all(query, params, (err, records) => {
+    if (err) {
+      return res.status(500).json({ message: 'Database error' });
+    }
+    res.json({ records });
+  });
+});
+
+// Get single salary record
+app.get('/salary/records/:id', authenticateToken, (req, res) => {
+  const { id } = req.params;
+
+  db.get(
+    `SELECT s.*, u.employee_id, u.name, u.role as position, u.department
+     FROM salary s
+     JOIN users u ON s.user_id = u.id
+     WHERE s.id = ?`,
+    [id],
+    (err, record) => {
+      if (err || !record) {
+        return res.status(404).json({ message: 'Salary record not found' });
+      }
+
+      if (req.user.role === 'employee' && req.user.id !== record.user_id) {
+        return res.status(403).json({ message: 'Unauthorized' });
+      }
+
+      res.json({
+        id: record.id,
+        employeeId: record.employee_id,
+        employeeName: record.name,
+        position: record.position,
+        department: record.department,
+        salary: record.amount,
+        status: record.status,
+        releasedAt: record.released_at,
+        claimedAt: record.claimed_at
+      });
+    }
+  );
+});
+
+// Update salary record (admin only)
+app.put('/salary/records/:id', authenticateToken, (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+    return res.status(403).json({ message: 'Unauthorized' });
+  }
+
+  const { id } = req.params;
+  const { baseSalary } = req.body;
+  const amount = Number(baseSalary);
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return res.status(400).json({ message: 'Invalid salary amount' });
+  }
+
+  db.run(
+    'UPDATE salary SET amount = ? WHERE id = ?',
+    [amount, id],
+    (err) => {
+      if (err) {
+        return res.status(500).json({ message: 'Failed to update salary record' });
+      }
+      res.json({ success: true, message: 'Salary record updated successfully' });
+    }
+  );
+});
+
+// Add salary record (admin only)
+app.post('/salary/add', authenticateToken, (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+    return res.status(403).json({ message: 'Unauthorized' });
+  }
+
+  const { employeeId, periodStart, periodEnd, amount, trips } = req.body;
+
+  db.get('SELECT id FROM users WHERE employee_id = ?', [employeeId], (err, user) => {
+    if (err || !user) {
+      return res.status(404).json({ message: 'Employee not found' });
+    }
+
+    db.run(
+      `INSERT INTO salary (user_id, period_start, period_end, amount, trips, status) 
+       VALUES (?, ?, ?, ?, ?, 'Pending')`,
+      [user.id, periodStart, periodEnd, amount, trips || 0],
+      function(err) {
+        if (err) {
+          return res.status(500).json({ message: 'Failed to add salary record' });
+        }
+        res.json({ success: true, id: this.lastID, message: 'Salary record added successfully' });
+      }
+    );
+  });
+});
+
+// Release salary (admin only)
+app.put('/salary/release/:id', authenticateToken, (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+    return res.status(403).json({ message: 'Unauthorized' });
+  }
+
+  const { id } = req.params;
+  const now = new Date().toISOString();
+
+  db.run(
+    'UPDATE salary SET status = ?, released_at = ? WHERE id = ?',
+    ['Released', now, id],
+    (err) => {
+      if (err) {
+        return res.status(500).json({ message: 'Failed to release salary' });
+      }
+      res.json({ success: true, message: 'Salary released successfully' });
+    }
+  );
+});
+
+// Claim salary (employee or admin)
+app.put('/salary/claim/:id', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const now = new Date().toISOString();
+
+  // Verify ownership if employee
+  if (req.user.role === 'employee') {
+    db.get('SELECT * FROM salary WHERE id = ? AND user_id = ?', [id, req.user.id], (err, record) => {
+      if (err || !record) {
+        return res.status(403).json({ message: 'Unauthorized or record not found' });
+      }
+      
+      db.run(
+        'UPDATE salary SET status = ?, claimed_at = ? WHERE id = ?',
+        ['Claimed', now, id],
+        (err) => {
+          if (err) {
+            return res.status(500).json({ message: 'Failed to claim salary' });
+          }
+          res.json({ success: true, message: 'Salary claimed successfully' });
+        }
+      );
+    });
+  } else {
+    db.run(
+      'UPDATE salary SET status = ?, claimed_at = ? WHERE id = ?',
+      ['Claimed', now, id],
+      (err) => {
+        if (err) {
+          return res.status(500).json({ message: 'Failed to claim salary' });
+        }
+        res.json({ success: true, message: 'Salary claimed successfully' });
+      }
+    );
+  }
+});
+
+// ========== EMPLOYEE ROUTES ==========
+
+// Get all employees
+app.get('/employees', authenticateToken, (req, res) => {
+  const { department, status } = req.query;
+  
+  let query = 'SELECT id, employee_id, name, email, role, department, status, created_at, profile_image_url, qr_code, qr_image_url, position, phone FROM users WHERE 1=1';
+  const params = [];
+
+  if (department && department !== 'All') {
+    query += ' AND department = ?';
+    params.push(department);
+  }
+  if (status && status !== 'All') {
+    query += ' AND status = ?';
+    params.push(status);
+  }
+
+  query += ' ORDER BY created_at DESC';
+
+  db.all(query, params, (err, employees) => {
+    if (err) {
+      return res.status(500).json({ message: 'Database error' });
+    }
+    res.json({ employees });
+  });
+});
+
+// Get single employee
+app.get('/employees/:id', authenticateToken, (req, res) => {
+  const { id } = req.params;
+  
+  db.get(
+    'SELECT id, employee_id, name, email, role, department, status, created_at, profile_image_url, qr_code, qr_image_url, position, phone FROM users WHERE employee_id = ?',
+    [id],
+    (err, employee) => {
+      if (err || !employee) {
+        return res.status(404).json({ message: 'Employee not found' });
+      }
+      res.json({ employee });
+    }
+  );
+});
+
+// Add employee (admin only) - Auto-creates user account with activation token
+app.post('/employees', authenticateToken, (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+    return res.status(403).json({ message: 'Unauthorized' });
+  }
+
+  const { employeeId, name, email, role, department, position, phone } = req.body;
+
+  // Validate required fields
+  if (!employeeId || !name || !email || !role || !department) {
+    return res.status(400).json({ message: 'Missing required fields' });
+  }
+
+  // Generate activation token and expiry
+  const crypto = require('crypto');
+  const activationToken = crypto.randomBytes(32).toString('hex');
+  const activationExpiry = new Date();
+  activationExpiry.setHours(activationExpiry.getHours() + 24); // Expires in 24 hours
+
+  const timestamp = Date.now();
+  const qrCode = `${employeeId}|${timestamp}|${Math.random().toString(36).substr(2, 9)}`;
+  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrCode)}`;
+
+  // Create user account with PENDING status (no password yet)
+  db.run(
+    `INSERT INTO users (employee_id, name, email, role, department, position, phone, account_status, activation_token, activation_expiry, qr_code, qr_image_url, status) 
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, 'active')`,
+    [employeeId, name, email, role, department, position || department, phone || '', activationToken, activationExpiry.toISOString(), qrCode, qrImageUrl],
+    function(err) {
+      if (err) {
+        if (err.message.includes('UNIQUE constraint')) {
+          return res.status(400).json({ message: 'Employee ID or email already exists' });
+        }
+        return res.status(500).json({ message: 'Failed to add employee' });
+      }
+
+      // TODO: Send activation email here
+      // For now, return the setup link for development
+      const setupLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/setup-password?token=${activationToken}`;
+
+      res.json({
+        success: true,
+        id: this.lastID,
+        message: 'Employee account created. Activation link sent to email.',
+        setupLink: setupLink, // For development only
+        qrCode,
+        qrImageUrl
+      });
+    }
+  );
+});
+
+
+// Update employee (admin only)
+app.put('/employees/:id', authenticateToken, (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+    return res.status(403).json({ message: 'Unauthorized' });
+  }
+
+  const { id } = req.params;
+  const { name, email, role, department, status, position, phone } = req.body;
+
+  db.run(
+    'UPDATE users SET name = ?, email = ?, role = ?, department = ?, status = ?, position = ?, phone = ? WHERE employee_id = ?',
+    [name, email, role, department, status, position, phone, id],
+    (err) => {
+      if (err) {
+        return res.status(500).json({ message: 'Failed to update employee' });
+      }
+      res.json({ success: true, message: 'Employee updated successfully' });
+    }
+  );
+});
+
+// Delete employee (admin only)
+app.delete('/employees/:id', authenticateToken, (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+    return res.status(403).json({ message: 'Unauthorized' });
+  }
+
+  const { id } = req.params;
+
+  db.run('DELETE FROM users WHERE employee_id = ?', [id], (err) => {
+    if (err) {
+      return res.status(500).json({ message: 'Failed to delete employee' });
+    }
+    res.json({ success: true, message: 'Employee deleted successfully' });
+  });
+});
+
+// ========== DASHBOARD ROUTES ==========
+
+// Get dashboard statistics
+app.get('/dashboard/stats', authenticateToken, (req, res) => {
+  const today = new Date().toISOString().split('T')[0];
+  const isEmployee = req.user.role === 'employee';
+
+  if (isEmployee) {
+    // Employee dashboard stats - use employee_id to find user id
+    db.get(
+      `SELECT id FROM users WHERE employee_id = ?`,
+      [req.user.id],
+      (err, userRecord) => {
+        if (err || !userRecord) {
+          return res.status(500).json({ message: 'Database error' });
+        }
+        const userId = userRecord.id;
+        
+        db.get(
+          `SELECT 
+            (SELECT COUNT(*) FROM attendance WHERE user_id = ? AND date >= date('now', '-30 days')) as days_present,
+            (SELECT amount FROM salary WHERE user_id = ? AND status = 'Released' ORDER BY period_end DESC LIMIT 1) as latest_salary,
+            (SELECT COUNT(*) FROM salary WHERE user_id = ? AND status = 'Pending') as pending_claims
+          `,
+          [userId, userId, userId],
+          (err, stats) => {
+            if (err) {
+              return res.status(500).json({ message: 'Database error' });
+            }
+            res.json({ stats: stats || { days_present: 0, latest_salary: 0, pending_claims: 0 } });
+          }
+        );
+      }
+    );
+  } else {
+    // Admin/Manager dashboard stats
+    db.get(
+      `SELECT 
+        (SELECT COUNT(*) FROM users WHERE status = 'active') as total_employees,
+        (SELECT COUNT(*) FROM attendance WHERE date = ?) as today_present,
+        (SELECT COUNT(*) FROM salary WHERE status = 'Pending') as pending_salaries,
+        (SELECT SUM(amount) FROM salary WHERE status = 'Pending') as pending_amount,
+        (SELECT COUNT(*) FROM attendance WHERE date >= date('now', '-7 days')) as week_attendance
+      `,
+      [today],
+      (err, stats) => {
+        if (err) {
+          return res.status(500).json({ message: 'Database error' });
+        }
+        res.json({ stats: stats || { total_employees: 0, today_present: 0, pending_salaries: 0, pending_amount: 0, week_attendance: 0 } });
+      }
+    );
+  }
+});
+
+// ========== PROFILE ROUTES ==========
+
+// Upload profile photo
+app.post('/users/upload-photo', authenticateToken, upload.single('photo'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: 'No file uploaded' });
+  }
+
+  let imageUrl = null;
+
+  if (supabase) {
+    const fileName = `profiles/${req.user.id}_${Date.now()}.jpg`;
+    const { data, error } = await supabase.storage
+      .from(process.env.SUPABASE_BUCKET || 'profile-images')
+      .upload(fileName, req.file.buffer, {
+        contentType: req.file.mimetype,
+        cacheControl: '3600'
+      });
+
+    if (!error) {
+      imageUrl = supabase.storage
+        .from(process.env.SUPABASE_BUCKET || 'profile-images')
+        .getPublicUrl(fileName).data.publicUrl;
+    }
+  } else {
+    // Fallback: save to local filesystem or return base64
+    imageUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+  }
+
+  // Get user ID first, then update profile
+  db.get('SELECT id FROM users WHERE employee_id = ?', [req.user.id], (err, user) => {
+    if (err || !user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    db.run(
+      'UPDATE users SET profile_image_url = ? WHERE id = ?',
+      [imageUrl, user.id],
+      (err) => {
+        if (err) {
+          return res.status(500).json({ message: 'Failed to update profile' });
+        }
+        res.json({ success: true, imageUrl, message: 'Profile photo updated successfully' });
+      }
+    );
+  });
+});
+
+// ========== USER PROFILE ROUTES ==========
+
+// Get user profile
+app.get('/users/profile', authenticateToken, (req, res) => {
+  db.get(
+    'SELECT id, employee_id, name, email, role, department, status, profile_image_url, created_at FROM users WHERE id = ?',
+    [req.user.id],
+    (err, user) => {
+      if (err || !user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      res.json({ user });
+    }
+  );
+});
+
+// Update user profile
+app.put('/users/profile', authenticateToken, (req, res) => {
+  const { name, email, department } = req.body;
+
+  db.run(
+    'UPDATE users SET name = ?, email = ?, department = ? WHERE id = ?',
+    [name, email, department, req.user.id],
+    (err) => {
+      if (err) {
+        return res.status(500).json({ message: 'Failed to update profile' });
+      }
+      res.json({ success: true, message: 'Profile updated successfully' });
+    }
+  );
+});
+
+// ========== USER MANAGEMENT ROUTES ==========
+
+// Get all users (admin only)
+app.get('/users', authenticateToken, (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+    return res.status(403).json({ message: 'Unauthorized' });
+  }
+
+  const { status } = req.query;
+  let query = 'SELECT id, employee_id, name, email, role, status, created_at FROM users WHERE 1=1';
+  const params = [];
+
+  if (status && status !== 'All') {
+    query += ' AND status = ?';
+    params.push(status);
+  }
+
+  query += ' ORDER BY created_at DESC';
+
+  db.all(query, params, (err, users) => {
+    if (err) {
+      return res.status(500).json({ message: 'Database error' });
+    }
+    
+    const transformed = users.map(u => ({
+      id: u.id,
+      userId: u.employee_id,
+      username: u.name.toLowerCase().replace(/\s+/g, '.'),
+      role: u.role.charAt(0).toUpperCase() + u.role.slice(1),
+      status: u.status,
+      lastLogin: new Date(u.created_at).toLocaleDateString('en-US'),
+      permissions: getPermissionsForRole(u.role)
+    }));
+
+    res.json({ users: transformed });
+  });
+});
+
+// Helper function to get permissions by role
+function getPermissionsForRole(role) {
+  const permissions = {
+    super_admin: ['View All', 'Edit All', 'Delete', 'Manage Users', 'Manage Salary', 'Manage Audit'],
+    fadmin: ['View All', 'Edit All', 'Delete', 'Manage Users', 'Manage Salary'],
+    manager: ['View All', 'Edit Own', 'Manage Attendance', 'Approve Corrections'],
+    employee: ['View Own', 'Edit Own', 'Request Correction']
+  };
+  return permissions[role] || [];
+}
+
+// Disable/Enable user (admin only)
+app.put('/users/:id/status', authenticateToken, (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+    return res.status(403).json({ message: 'Unauthorized' });
+  }
+
+  const { id } = req.params;
+  const { status } = req.body;
+
+  if (!['Active', 'Inactive'].includes(status)) {
+    return res.status(400).json({ message: 'Invalid status' });
+  }
+
+  db.run(
+    'UPDATE users SET status = ? WHERE id = ?',
+    [status, id],
+    (err) => {
+      if (err) {
+        return res.status(500).json({ message: 'Failed to update user status' });
+      }
+      res.json({ success: true, message: `User status updated to ${status}` });
+    }
+  );
+});
+
+// ========== QR CODE ROUTES ==========
+
+// Generate QR code for employee
+app.post('/qr/generate', authenticateToken, (req, res) => {
+  const { employeeId } = req.body;
+
+  db.get('SELECT * FROM users WHERE employee_id = ?', [employeeId], (err, user) => {
+    if (err || !user) {
+      return res.status(404).json({ message: 'Employee not found' });
+    }
+
+    // QR code data: employee_id|timestamp|hash
+    const timestamp = Date.now();
+    const qrData = `${employeeId}|${timestamp}|${Math.random().toString(36).substr(2, 9)}`;
+
+    res.json({
+      success: true,
+      qrCode: qrData,
+      employeeId,
+      generatedAt: new Date().toISOString()
+    });
+  });
+});
+
+// Validate QR code
+app.post('/qr/validate', (req, res) => {
+  const { qrCode } = req.body;
+
+  // Simple validation: check format
+  const parts = qrCode.split('|');
+  if (parts.length !== 3) {
+    return res.status(400).json({ valid: false, message: 'Invalid QR format' });
+  }
+
+  const [employeeId, timestamp, hash] = parts;
+  const generatedTime = parseInt(timestamp);
+  const currentTime = Date.now();
+  const ageMinutes = (currentTime - generatedTime) / 60000;
+
+  // QR codes valid for 24 hours
+  if (ageMinutes > 1440) {
+    return res.status(400).json({ valid: false, message: 'QR code expired' });
+  }
+
+  res.json({ valid: true, employeeId, ageMinutes: Math.round(ageMinutes) });
+});
+
+// ========== SALARY RECEIPT ROUTES ==========
+
+// Generate salary receipt (PDF)
+app.get('/salary/receipt/:id', authenticateToken, (req, res) => {
+  const { id } = req.params;
+
+  db.get(
+    `SELECT s.*, u.employee_id, u.name, u.email, u.department
+     FROM salary s
+     JOIN users u ON s.user_id = u.id
+     WHERE s.id = ?`,
+    [id],
+    (err, record) => {
+      if (err || !record) {
+        return res.status(404).json({ message: 'Salary record not found' });
+      }
+
+      // Verify authorization
+      if (req.user.role !== 'admin' && req.user.role !== 'super_admin' && req.user.id !== record.user_id) {
+        return res.status(403).json({ message: 'Unauthorized' });
+      }
+
+      // Create PDF
+      const doc = new PDFDocument({ bufferPages: true, margin: 50 });
+      const filename = `salary_receipt_${record.employee_id}_${new Date().toISOString().split('T')[0]}.pdf`;
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+      doc.pipe(res);
+
+      // Header
+      doc.fontSize(20).font('Helvetica-Bold').text('Gracewell NEXUS', { align: 'center' });
+      doc.fontSize(14).font('Helvetica').text('SALARY RECEIPT', { align: 'center' });
+      doc.moveDown(0.5);
+
+      // Receipt Details
+      doc.fontSize(12).font('Helvetica-Bold').text('Receipt Number:', { underline: true });
+      doc.font('Helvetica').text(`SAL-${record.id}-${new Date().getFullYear()}`);
+      doc.moveDown(0.3);
+
+      doc.fontSize(12).font('Helvetica-Bold').text('Date Issued:', { underline: true });
+      doc.font('Helvetica').text(new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }));
+      doc.moveDown(1);
+
+      // Employee Information
+      doc.fontSize(13).font('Helvetica-Bold').text('EMPLOYEE INFORMATION', { underline: true });
+      doc.fontSize(11).font('Helvetica');
+      doc.text(`Name: ${record.name}`);
+      doc.text(`Employee ID: ${record.employee_id}`);
+      doc.text(`Department: ${record.department}`);
+      doc.text(`Email: ${record.email}`);
+      doc.moveDown(1);
+
+      // Salary Details
+      doc.fontSize(13).font('Helvetica-Bold').text('SALARY DETAILS', { underline: true });
+      doc.fontSize(11).font('Helvetica');
+      doc.text(`Period: ${record.period_start} to ${record.period_end}`);
+      doc.text(`Amount: ₱${(record.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
+      doc.text(`Status: ${record.status}`);
+      doc.text(`Released Date: ${record.released_at ? new Date(record.released_at).toLocaleDateString('en-US') : 'Not Released'}`);
+      doc.moveDown(1);
+
+      // Footer
+      doc.fontSize(10).font('Helvetica').text('This is an official receipt. Keep it for your records.', { align: 'center' });
+      doc.text(`Generated: ${new Date().toLocaleString('en-US')}`, { align: 'center' });
+
+      doc.end();
+    }
+  );
+});
+
+// ========== REPORTS/EXPORT ROUTES ==========
+
+// Export attendance report
+app.post('/reports/attendance', authenticateToken, (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'super_admin' && req.user.role !== 'manager') {
+    return res.status(403).json({ message: 'Unauthorized' });
+  }
+
+  const { startDate, endDate, format = 'json' } = req.body;
+
+  db.all(
+    `SELECT a.*, u.employee_id, u.name, u.department
+     FROM attendance a
+     JOIN users u ON a.user_id = u.id
+     WHERE a.date BETWEEN ? AND ?
+     ORDER BY a.date DESC`,
+    [startDate, endDate],
+    (err, records) => {
+      if (err) {
+        return res.status(500).json({ message: 'Database error' });
+      }
+
+      if (format === 'csv') {
+        const headers = ['Employee ID', 'Name', 'Department', 'Date', 'Check In', 'Check Out'];
+        const rows = records.map(r => [
+          r.employee_id,
+          r.name,
+          r.department,
+          r.date,
+          r.check_in ? new Date(r.check_in).toLocaleTimeString() : '-',
+          r.check_out ? new Date(r.check_out).toLocaleTimeString() : '-'
+        ]);
+
+        const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+        res.set('Content-Type', 'text/csv');
+        res.set('Content-Disposition', `attachment; filename="attendance_${startDate}_${endDate}.csv"`);
+        res.send(csv);
+      } else {
+        res.json({ records, format: 'json', generatedAt: new Date().toISOString() });
+      }
+    }
+  );
+});
+
+// Export salary report
+app.post('/reports/salary', authenticateToken, (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+    return res.status(403).json({ message: 'Unauthorized' });
+  }
+
+  const { startDate, endDate, format = 'json' } = req.body;
+
+  db.all(
+    `SELECT s.*, u.employee_id, u.name, u.department
+     FROM salary s
+     JOIN users u ON s.user_id = u.id
+     WHERE s.period_end BETWEEN ? AND ?
+     ORDER BY s.period_end DESC`,
+    [startDate, endDate],
+    (err, records) => {
+      if (err) {
+        return res.status(500).json({ message: 'Database error' });
+      }
+
+      if (format === 'csv') {
+        const headers = ['Employee ID', 'Name', 'Department', 'Period Start', 'Period End', 'Amount', 'Status'];
+        const rows = records.map(r => [
+          r.employee_id,
+          r.name,
+          r.department,
+          r.period_start,
+          r.period_end,
+          r.amount,
+          r.status
+        ]);
+
+        const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+        res.set('Content-Type', 'text/csv');
+        res.set('Content-Disposition', `attachment; filename="salary_${startDate}_${endDate}.csv"`);
+        res.send(csv);
+      } else {
+        res.json({ records, format: 'json', generatedAt: new Date().toISOString() });
+      }
+    }
+  );
+});
+
+// ========== AUDIT LOG ROUTES ==========
+
+app.post('/audit/log', authenticateToken, (req, res) => {
+  const { action, details } = req.body;
+  const userId = req.user.id;
+
+  db.run(
+    'INSERT INTO audit_log (user_id, action, details) VALUES (?, ?, ?)',
+    [userId, action, JSON.stringify(details)],
+    (err) => {
+      if (err) {
+        console.error('Audit log error:', err);
+        return res.status(500).json({ message: 'Failed to log audit' });
+      }
+      res.json({ success: true });
+    }
+  );
+});
+
+// Get audit logs (admin only)
+app.get('/audit/logs', authenticateToken, (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+    return res.status(403).json({ message: 'Unauthorized' });
+  }
+
+  const { limit = 100, offset = 0 } = req.query;
+
+  db.all(
+    `SELECT al.*, u.employee_id, u.name 
+     FROM audit_log al 
+     LEFT JOIN users u ON al.user_id = u.id 
+     ORDER BY al.timestamp DESC 
+     LIMIT ? OFFSET ?`,
+    [parseInt(limit), parseInt(offset)],
+    (err, logs) => {
+      if (err) {
+        return res.status(500).json({ message: 'Database error' });
+      }
+      res.json({ logs });
+    }
+  );
+});
+
+// ========== ADMIN DATABASE MANAGEMENT ==========
+
+// Get database statistics
+app.get('/admin/database/stats', authenticateToken, (req, res) => {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Admin access required' });
+  }
+
+  const stats = {};
+
+  // Count users
+  db.get('SELECT COUNT(*) as count FROM users', (err, row) => {
+    stats.totalUsers = row?.count || 0;
+
+    // Count active employees
+    db.get('SELECT COUNT(*) as count FROM users WHERE status = "active" AND role = "employee"', (err, row) => {
+      stats.activeEmployees = row?.count || 0;
+
+      // Count attendance records
+      db.get('SELECT COUNT(*) as count FROM attendance', (err, row) => {
+        stats.attendanceRecords = row?.count || 0;
+
+        // Count salary records
+        db.get('SELECT COUNT(*) as count FROM salary', (err, row) => {
+          stats.salaryRecords = row?.count || 0;
+
+          // Count roles
+          db.get('SELECT COUNT(DISTINCT role) as count FROM users', (err, row) => {
+            stats.totalRoles = row?.count || 0;
+            stats.databaseSize = 'Unknown';
+            res.json(stats);
+          });
+        });
+      });
+    });
+  });
+});
+
+// Get table data
+app.get('/admin/database/tables/:tableName', authenticateToken, (req, res) => {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Admin access required' });
+  }
+
+  const { tableName } = req.params;
+  const limit = req.query.limit || 1000;
+  
+  // Sanitize table name to prevent SQL injection
+  const allowedTables = ['users', 'attendance', 'salary', 'audit_log'];
+  if (!allowedTables.includes(tableName)) {
+    return res.status(400).json({ message: 'Invalid table name' });
+  }
+
+  db.all(`SELECT * FROM ${tableName} LIMIT ?`, [parseInt(limit)], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ message: 'Database error', error: err.message });
+    }
+    res.json(rows || []);
+  });
+});
+
+// Delete record from table
+app.delete('/admin/database/tables/:tableName/:id', authenticateToken, (req, res) => {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Admin access required' });
+  }
+
+  const { tableName, id } = req.params;
+  const allowedTables = ['users', 'attendance', 'salary', 'audit_log'];
+  
+  if (!allowedTables.includes(tableName)) {
+    return res.status(400).json({ message: 'Invalid table name' });
+  }
+
+  // Determine the ID column
+  const idColumn = tableName === 'users' ? 'employee_id' : 'id';
+
+  db.run(`DELETE FROM ${tableName} WHERE id = ? OR ${idColumn} = ?`, [id, id], function(err) {
+    if (err) {
+      return res.status(500).json({ message: 'Database error', error: err.message });
+    }
+    res.json({ message: 'Record deleted successfully' });
+  });
+});
+
+// Clear entire table (admin only)
+app.delete('/admin/database/tables/:tableName/clear', authenticateToken, (req, res) => {
+  if (req.user.role !== 'super_admin') {
+    return res.status(403).json({ message: 'Super admin access required' });
+  }
+
+  const { tableName } = req.params;
+  const allowedTables = ['audit_log'];
+  
+  if (!allowedTables.includes(tableName)) {
+    return res.status(400).json({ message: 'Cannot clear this table' });
+  }
+
+  db.run(`DELETE FROM ${tableName}`, function(err) {
+    if (err) {
+      return res.status(500).json({ message: 'Database error', error: err.message });
+    }
+    res.json({ message: 'Table cleared successfully' });
+  });
+});
+
+// Export table as CSV
+app.get('/admin/database/export/:tableName', authenticateToken, (req, res) => {
+  if (req.user.role !== 'super_admin' && req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Admin access required' });
+  }
+
+  const { tableName } = req.params;
+  const allowedTables = ['users', 'attendance', 'salary', 'audit_log'];
+  
+  if (!allowedTables.includes(tableName)) {
+    return res.status(400).json({ message: 'Invalid table name' });
+  }
+
+  db.all(`SELECT * FROM ${tableName}`, (err, rows) => {
+    if (err) {
+      return res.status(500).json({ message: 'Database error' });
+    }
+
+    if (rows.length === 0) {
+      return res.status(400).json({ message: 'No data to export' });
+    }
+
+    // Convert to CSV
+    const headers = Object.keys(rows[0]).join(',');
+    const csvContent = [headers, ...rows.map(row => 
+      Object.values(row).map(val => `"${String(val).replace(/"/g, '""')}"`).join(',')
+    )].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${tableName}_export.csv"`);
+    res.send(csvContent);
+  });
+});
+
+// Optimize database
+app.post('/admin/database/optimize', authenticateToken, (req, res) => {
+  if (req.user.role !== 'super_admin') {
+    return res.status(403).json({ message: 'Super admin access required' });
+  }
+
+  db.run('VACUUM', (err) => {
+    if (err) {
+      return res.status(500).json({ message: 'Database optimization failed' });
+    }
+
+    db.run('ANALYZE', (err) => {
+      if (err) {
+        return res.status(500).json({ message: 'Database analysis failed' });
+      }
+      res.json({ message: 'Database optimized successfully' });
+    });
+  });
+});
+
+// ========== HEALTH CHECK ==========
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Start server
+const server = app.listen(PORT, async () => {
+  console.log(`✅ Gracewell NEXUS Backend running on http://localhost:${PORT}`);
+  console.log(`📊 Database: Supabase`);
+  console.log(`🔐 JWT Secret: ${process.env.JWT_SECRET ? 'Configured' : 'Using default (CHANGE IN PRODUCTION!)'}`);
+  console.log(`📦 Supabase: ${supabase ? 'Connected' : 'Not configured'}`);
+  
+  // Initialize database (seed users if needed)
+  try {
+    console.log('Checking database tables...');
+    await db.initialize();
+  } catch (err) {
+    console.error('Database initialization error:', err);
+  }
+});
+
+module.exports = app;

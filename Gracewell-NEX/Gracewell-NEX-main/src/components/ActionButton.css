@@ -1,0 +1,72 @@
+.gnx-action-btn {
+	--action-amber: #F59E0B;
+	--action-amber-hover: #D97706;
+
+	display: inline-flex;
+	align-items: center;
+	border-radius: 8px;
+	overflow: hidden;
+	border: none;
+	outline: none;
+	box-shadow: none;
+}
+
+.gnx-action-btn-single,
+.gnx-action-btn-main,
+.gnx-action-btn-arrow {
+	background: var(--action-amber);
+	color: #ffffff;
+	font-weight: 600;
+	font-size: 13px;
+	line-height: 1;
+	border: none;
+	outline: none;
+	box-shadow: none;
+	-webkit-appearance: none;
+	appearance: none;
+}
+
+.gnx-action-btn-single,
+.gnx-action-btn-main {
+	padding: 8px 16px;
+}
+
+.gnx-action-btn-arrow {
+	padding: 8px 16px;
+	cursor: pointer;
+}
+
+.gnx-action-btn-divider {
+	width: 1px;
+	background: rgba(255, 255, 255, 0.4);
+}
+
+.gnx-action-btn-single:hover {
+	background: var(--action-amber-hover);
+}
+
+.gnx-action-btn-main:hover {
+	background: var(--action-amber);
+}
+
+.gnx-action-btn-arrow:hover {
+	background: var(--action-amber-hover);
+}
+
+.gnx-action-btn-single:focus,
+.gnx-action-btn-single:focus-visible,
+.gnx-action-btn-main:focus,
+.gnx-action-btn-main:focus-visible,
+.gnx-action-btn-arrow:focus,
+.gnx-action-btn-arrow:focus-visible {
+	outline: none;
+	box-shadow: none;
+}
+
+.gnx-action-btn-single:disabled,
+.gnx-action-btn-main:disabled,
+.gnx-action-btn-arrow:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+

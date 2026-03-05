@@ -1,0 +1,134 @@
+.face-detection-container {
+  min-height: 100vh;
+  background-color: #f5f5f5;
+}
+
+.face-detection-content {
+  padding: 40px;
+  display: flex;
+  gap: 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.scan-box {
+  flex: 1;
+  background-color: white;
+  border-radius: 12px;
+  padding: 30px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border: 1px solid #e0e0e0;
+}
+
+.camera-frame {
+  width: 100%;
+  aspect-ratio: 1;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.camera-placeholder {
+  text-align: center;
+  color: white;
+}
+
+.camera-placeholder p {
+  margin: 10px 0;
+}
+
+.scan-info {
+  text-align: center;
+}
+
+.scan-info h2 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 24px;
+}
+
+.scan-info p {
+  color: #666;
+  margin: 5px 0;
+}
+
+#instruction {
+  font-size: 18px;
+  color: #333;
+  font-weight: 500;
+  margin: 15px 0;
+}
+
+.scan-btn {
+  background-color: #f4c10f;
+  color: #000;
+  padding: 15px 40px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 20px;
+  transition: background-color 0.3s;
+}
+
+.scan-btn:hover {
+  background-color: #ffda2c;
+}
+
+.recent-activity {
+  flex: 1;
+  background-color: white;
+  border-radius: 12px;
+  padding: 30px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border: 1px solid #e0e0e0;
+}
+
+.recent-activity h3 {
+  margin: 0 0 20px 0;
+  color: #333;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.activity-log {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.log-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  font-size: 14px;
+}
+
+.log-item span {
+  color: #333;
+}
+
+.log-item .time {
+  color: #999;
+  font-size: 12px;
+}
+
+@media (max-width: 768px) {
+  .face-detection-content {
+    flex-direction: column;
+    padding: 20px;
+  }
+
+  .camera-frame {
+    height: 300px;
+  }
+}
