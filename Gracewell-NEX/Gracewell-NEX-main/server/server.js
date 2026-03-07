@@ -4516,6 +4516,7 @@ app.get('/users', authenticateToken, async (req, res) => {
           middle_name,
           last_name,
           email_address,
+          profile_image_url,
           departments:department_id(department_name)
         )
       `)
@@ -4545,6 +4546,7 @@ app.get('/users', authenticateToken, async (req, res) => {
         department: departmentName || (roleName.charAt(0).toUpperCase() + roleName.slice(1)),
         role: roleName.charAt(0).toUpperCase() + roleName.slice(1),
         status: u.account_status || 'Active',
+        profile_image_url: u.employees?.profile_image_url || null,
         lastLogin: u.last_login ? new Date(u.last_login).toLocaleDateString('en-US') : new Date(u.date_created).toLocaleDateString('en-US'),
         permissions: (u.permissions && u.permissions.length > 0)
           ? u.permissions

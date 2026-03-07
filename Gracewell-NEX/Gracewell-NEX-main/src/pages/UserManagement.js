@@ -469,12 +469,13 @@ const UserManagement = ({ user, onLogout }) => {
             <div className="modal-body">
               {/* User Info Section */}
               <div className="user-info-card">
-                <div className="user-avatar">
-                  {editFormData.avatarUrl || editFormData.photoUrl || editFormData.profilePhoto ? (
+                <div className="user-avatar" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {editFormData.profile_image_url || editFormData.avatarUrl || editFormData.photoUrl || editFormData.profilePhoto ? (
                     <img
                       className="user-avatar-image"
-                      src={editFormData.avatarUrl || editFormData.photoUrl || editFormData.profilePhoto}
+                      src={editFormData.profile_image_url || editFormData.avatarUrl || editFormData.photoUrl || editFormData.profilePhoto}
                       alt={`${editFormData.username || 'User'} avatar`}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
                     />
                   ) : (
                     editFormData.username?.charAt(0).toUpperCase() || 'U'
