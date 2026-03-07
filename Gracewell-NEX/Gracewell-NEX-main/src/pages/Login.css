@@ -234,9 +234,16 @@
   border-radius: 4px;
 }
 
-.toggle-password-btn:hover:not(:disabled) {
-  background: rgba(0, 0, 0, 0.05);
-  color: #333;
+.password-toggle-icon {
+  position: absolute;
+  right: 14px;
+  color: #666;
+  transition: color 0.2s ease;
+  z-index: 10;
+}
+
+.password-toggle-icon[style*="opacity: 1"]:hover {
+  color: #1AB7D6;
 }
 
 .toggle-password-btn:disabled {
