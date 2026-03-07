@@ -417,8 +417,16 @@ const QRScanner = ({ user, onLogout }) => {
         </div>
         <div className="scanner-user">
           <span className="scanner-user-name">{user?.employeeName || user?.employeeCode || 'User'}</span>
-          <div className="user-avatar">
-            {(user?.employeeName || user?.employeeCode || 'U').charAt(0)}
+          <div className="user-avatar" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {user?.profile_image_url || user?.profileImage ? (
+              <img 
+                src={user?.profile_image_url || user?.profileImage} 
+                alt={`${user?.employeeName || 'User'} avatar`}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+              />
+            ) : (
+              (user?.employeeName || user?.employeeCode || 'U').charAt(0)
+            )}
           </div>
           <button className="scanner-logout-btn" onClick={handleLogout}>Logout</button>
         </div>

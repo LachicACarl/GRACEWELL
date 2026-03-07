@@ -73,7 +73,7 @@ const uploadEmployeePhotoToSupabase = async (file, employeeCode) => {
     throw new Error('Supabase storage not configured');
   }
 
-  const bucket = process.env.SUPABASE_PROFILE_BUCKET || process.env.SUPABASE_BUCKET || 'profile-images';
+  const bucket = process.env.SUPABASE_PROFILE_BUCKET || process.env.SUPABASE_BUCKET || 'attendance-images';
   const extension = file.mimetype === 'image/png' ? 'png' : 'jpg';
   const fileName = `employees/${employeeCode}-${Date.now()}.${extension}`;
 
