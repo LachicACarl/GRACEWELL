@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { QrReader } from 'react-qr-reader';
+import { Scanner } from '@yudiel/react-qr-scanner';
 import './QRScanLogin.css';
 import { apiClient, logAudit } from '../utils/authService';
 import Navbar from '../components/Navbar';
@@ -343,26 +343,38 @@ const QRScanLogin = ({ user, onLogout }) => {
           {!scannedEmployee ? (
             <div className="qr-scanner-section">
               <div className="qr-scanner-wrapper">
-                <div className={`qr-reader ${scanStatus}`}>
-                  <QrReader
+                <div className={`qr-reader ${scanStatus}`} style={{ position: 'relative' }}>
+                  <Scanner
                     key={qrReaderKey}
-                    onResult={handleScan}
-                    constraints={{
-                      facingMode: { ideal: 'environment' },
-                      width: { ideal: 1280 },
-                      height: { ideal: 720 }
+                    onScan={(detectedCodes) => {
+                      if (detectedCodes && detectedCodes.length > 0) {
+                        // Wrap the output so the existing handleScan function works perfectly
+                        handleScan({ text: detectedCodes[0].rawValue });
+                      }
                     }}
-                    videoStyle={{ width: '100%', height: '100%' }}
-                    ViewFinder={() => (
-                      <div className="qr-frame">
-                        <div className="qr-frame-corner qr-frame-corner-tl"></div>
-                        <div className="qr-frame-corner qr-frame-corner-tr"></div>
-                        <div className="qr-frame-corner qr-frame-corner-bl"></div>
-                        <div className="qr-frame-corner qr-frame-corner-br"></div>
-                        <div className="qr-scan-line"></div>
-                      </div>
-                    )}
+                    onError={(err) => {
+                      if (err && err.message && !err.message.includes('NotFoundException')) {
+                        setCameraError(err.message);
+                      }
+                    }}
+                    constraints={{
+                      facingMode: 'environment'
+                    }}
+                    components={{
+                      audio: false,
+                      finder: false // Disable default finder so we can use your custom CSS one
+                    }}
                   />
+                  {/* Overlay your exact existing ViewFinder over the new Scanner */}
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none' }}>
+                    <div className="qr-frame">
+                      <div className="qr-frame-corner qr-frame-corner-tl"></div>
+                      <div className="qr-frame-corner qr-frame-corner-tr"></div>
+                      <div className="qr-frame-corner qr-frame-corner-bl"></div>
+                      <div className="qr-frame-corner qr-frame-corner-br"></div>
+                      <div className="qr-scan-line"></div>
+                    </div>
+                  </div>
                 </div>
 
                 {cameraError && (

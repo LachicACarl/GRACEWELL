@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import ReCAPTCHA from 'react-google-recaptcha';
 import './Login.css';
 import { 
   loginUser, 
@@ -13,7 +14,6 @@ import { getPostLoginRedirect } from '../utils/roleRedirectMap';
 import { apiClient } from '../utils/authService';
 
 const Login = ({ setUser }) => {
-  // Step states: 'splash', 'id-input', 'password', 'verify-email'
   const [currentStep, setCurrentStep] = useState('splash');
   const [employeeId, setEmployeeId] = useState('');
   const [password, setPassword] = useState('');
@@ -36,7 +36,9 @@ const Login = ({ setUser }) => {
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  
   const checkRequestIdRef = useRef(0);
+  const recaptchaRef = useRef(null);
   const navigate = useNavigate();
 
   const maxAttempts = 7;
@@ -70,7 +72,6 @@ const Login = ({ setUser }) => {
 
   const normalizeEmployeeCode = (id) => String(id || '').trim().toUpperCase();
 
-  // Persist user-specific failed attempts to localStorage
   useEffect(() => {
     if (idConfirmed && employeeId) {
       const normalizedId = normalizeEmployeeCode(employeeId);
@@ -82,7 +83,6 @@ const Login = ({ setUser }) => {
     }
   }, [failedAttempts, idConfirmed, employeeId]);
 
-  // Persist user-specific lockout timer to localStorage
   useEffect(() => {
     if (idConfirmed && employeeId) {
       const normalizedId = normalizeEmployeeCode(employeeId);
@@ -98,7 +98,6 @@ const Login = ({ setUser }) => {
     setFadingOut(true);
     setTimeout(() => {
       setCurrentStep(step);
-      // Reset all form data and state when going back to splash
       if (step === 'splash') {
         setErrorMessage('');
         setIdConfirmed(false);
@@ -127,7 +126,6 @@ const Login = ({ setUser }) => {
   };
 
   const handleStartClick = () => {
-    // Reset all state before moving to ID input
     setPassword('');
     setEmployeeId('');
     setErrorMessage('');
@@ -214,7 +212,6 @@ const Login = ({ setUser }) => {
     setIsLoading(false);
 
     if (checkResult.found) {
-      // If it's an employee, auto-login and direct to QR attendance
       if (checkResult.role === 'employee') {
         setIsLoading(true);
         const loginResult = await loginUser(normalizeEmployeeCode(id), '', null);
@@ -223,14 +220,12 @@ const Login = ({ setUser }) => {
         if (loginResult.success) {
           setUser(loginResult.user);
           
-          // Log successful login
           await logAudit('LOGIN', { 
             employeeId: loginResult.user.employeeId, 
             role: loginResult.user.userRole,
             timestamp: new Date().toISOString()
           });
           
-          // Redirect to QR attendance
           setTimeout(() => {
             navigate('/qr-scanner');
           }, 300);
@@ -238,10 +233,8 @@ const Login = ({ setUser }) => {
           setErrorMessage(loginResult.error || 'Login failed. Please try again.');
         }
       } else {
-        // For admin/super_admin, show password field
         setIdConfirmed(true);
 
-        // Load user-specific lockout data
         const normalizedId = normalizeEmployeeCode(id);
         const savedAttempts = localStorage.getItem(`nexus_attempts_${normalizedId}`);
         const savedLockout = localStorage.getItem(`nexus_lockout_${normalizedId}`);
@@ -258,7 +251,6 @@ const Login = ({ setUser }) => {
     if (employeeIdTouched) {
       setEmployeeIdError(id.trim() ? '' : 'You need to fill this up');
     }
-    // Clear the helper message when input is cleared
     if (!id.trim()) {
       setEmployeeLookupMessage('');
     }
@@ -308,7 +300,6 @@ const Login = ({ setUser }) => {
       if (data?.success) {
         setResendMessage('✅ ' + data.message);
         if (data.verified) {
-          // Email verified successfully - redirect to login
           setTimeout(() => {
             setUnverifiedEmail(null);
             setErrorMessage('');
@@ -361,20 +352,35 @@ const Login = ({ setUser }) => {
       return;
     }
 
-    // Get CAPTCHA token if enabled
     let captchaToken = null;
     if (failedAttempts >= 3) {
+      if (!process.env.REACT_APP_RECAPTCHA_SITE_KEY) {
+        setErrorMessage('Config Error: Missing REACT_APP_RECAPTCHA_SITE_KEY in .env file. Please add it and restart the server.');
+        setIsLoading(false);
+        return;
+      }
+
       try {
-        captchaToken = await getCaptchaToken();
+        if (recaptchaRef.current) {
+          // For size="normal", we just grab the token if users ticked the box
+          captchaToken = recaptchaRef.current.getValue();
+        } else {
+          captchaToken = await getCaptchaToken();
+        }
+
         if (!captchaToken) {
-          console.warn('CAPTCHA token generation failed, but continuing without it');
+          setErrorMessage('Please check the "I am not a bot" box to continue.');
+          setIsLoading(false);
+          return;
         }
       } catch (error) {
-        console.warn('CAPTCHA error:', error);
+        console.error('Detailed CAPTCHA error:', error);
+        setErrorMessage('CAPTCHA error. Check console (F12) for details.');
+        setIsLoading(false);
+        return;
       }
     }
 
-    // For employees, send without password. For admin/manager, send with password
     const result = await loginUser(normalizedEmployeeId, requiresPassword ? password : '', captchaToken);
 
     if (result.success) {
@@ -382,27 +388,27 @@ const Login = ({ setUser }) => {
       setLockoutUntil(null);
       setUser(result.user);
       
-      // Log successful login
       await logAudit('LOGIN', { 
         employeeId: result.user.employeeId, 
         role: result.user.userRole,
         timestamp: new Date().toISOString()
       });
       
-      // Redirect based on role using centralized role redirect utility
-      // Ensures consistent redirect across all login methods
       setTimeout(() => {
         const redirectPath = getPostLoginRedirect(result.user);
         navigate(redirectPath);
       }, 300);
     } else if (result.code === 'EMAIL_NOT_VERIFIED') {
-      // Handle email verification required
       setUnverifiedEmail(result.email);
       setErrorMessage('');
       setResendMessage('');
       setCurrentStep('verify-email');
     } else {
-      // Log failed login attempt
+      // Reset the visible checkbox if login fails so they can tick it again
+      if (recaptchaRef.current) {
+        try { recaptchaRef.current.reset(); } catch(e) {}
+      }
+
       await logAudit('LOGIN_FAILED', {
         employeeId: normalizedEmployeeId,
         reason: result.error || 'Invalid credentials',
@@ -428,7 +434,6 @@ const Login = ({ setUser }) => {
     setIsLoading(false);
   };
 
-
   return (
     <div className="login-container">
       <div className={`login-box ${fadingOut ? 'fade-out' : 'fade-in'}`}>
@@ -442,7 +447,6 @@ const Login = ({ setUser }) => {
           </div>
         </div>
 
-        {/* STATE 1: SPLASH/LANDING */}
         {currentStep === 'splash' && (
           <div className="step-content splash-content">
             <h2>Welcome to Gracewell Nexus</h2>
@@ -456,7 +460,6 @@ const Login = ({ setUser }) => {
           </div>
         )}
 
-        {/* STATE 2: ID IDENTIFICATION */}
         {currentStep === 'id-input' && (
           <div className="step-content id-input-content">
             <h2 className={idConfirmed ? 'heading-confirmed' : ''}>
@@ -534,6 +537,17 @@ const Login = ({ setUser }) => {
                     )}
                   </div>
 
+                  {/* --- Visible reCAPTCHA component --- */}
+                  {failedAttempts >= 3 && (
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '15px' }}>
+                      <ReCAPTCHA
+                        ref={recaptchaRef}
+                        size="normal"
+                        sitekey={process.env.REACT_APP_RECAPTCHA_SITE_KEY}
+                      />
+                    </div>
+                  )}
+
                   <button 
                     type="submit" 
                     disabled={isLoading || !password || (lockoutUntil && lockoutUntil > Date.now())}
@@ -580,7 +594,6 @@ const Login = ({ setUser }) => {
           </div>
         )}
 
-        {/* STATE 3: EMAIL VERIFICATION REQUIRED */}
         {currentStep === 'verify-email' && (
           <div className="step-content verify-email-content">
             <h2>📧 Verify Your Email</h2>

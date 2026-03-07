@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import StableQrReader from '../components/StableQrReader';
+import { Scanner } from '@yudiel/react-qr-scanner';
 import './EmployeeQRScanner.css';
 import { apiClient, logAudit } from '../utils/authService';
 
@@ -163,30 +163,36 @@ const EmployeeQRScanner = ({ user, onLogout }) => {
         {!attendanceStatus || attendanceStatus === 'checked-in' ? (
           <div className="scanner-section employee-scanner">
             <div className="scanner-wrapper">
-              <div className={`qr-reader ${scanStatus}`}>
-                <StableQrReader
+              <div className={`qr-reader ${scanStatus}`} style={{ position: 'relative' }}>
+                <Scanner
                   key={qrReaderKey}
-                  onResult={handleScan}
+                  onScan={(detectedCodes) => {
+                    if (detectedCodes && detectedCodes.length > 0) {
+                      handleScan({ text: detectedCodes[0].rawValue });
+                    }
+                  }}
                   onError={(error) => {
                     console.error('Camera error:', error);
                     setCameraError(error?.message || 'Unable to access camera');
                   }}
                   constraints={{
-                    facingMode: { ideal: 'environment' },
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
+                    facingMode: 'environment'
                   }}
-                  videoStyle={{ width: '100%', height: '100%' }}
-                  ViewFinder={() => (
-                    <div className="qr-frame employee-frame">
-                      <div className="qr-frame-corner qr-frame-corner-tl"></div>
-                      <div className="qr-frame-corner qr-frame-corner-tr"></div>
-                      <div className="qr-frame-corner qr-frame-corner-bl"></div>
-                      <div className="qr-frame-corner qr-frame-corner-br"></div>
-                      <div className="qr-scan-line"></div>
-                    </div>
-                  )}
+                  components={{
+                    audio: false,
+                    finder: false
+                  }}
                 />
+                
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none' }}>
+                  <div className="qr-frame employee-frame">
+                    <div className="qr-frame-corner qr-frame-corner-tl"></div>
+                    <div className="qr-frame-corner qr-frame-corner-tr"></div>
+                    <div className="qr-frame-corner qr-frame-corner-bl"></div>
+                    <div className="qr-frame-corner qr-frame-corner-br"></div>
+                    <div className="qr-scan-line"></div>
+                  </div>
+                </div>
               </div>
 
               {cameraError && (
